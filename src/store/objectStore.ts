@@ -83,34 +83,42 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
         if (get().isInitialized) return;
 
         try {
-            // 匿名認証
+            // 匿名認証（タイムアウト内蔵）
             const userId = await getOrCreateUserId();
             set({ userId, isInitialized: true });
 
-            // 公開オブジェクトを取得
-            await get().fetchPublicObjects();
+            // 公開オブジェクト取得（失敗しても続行）
+            try {
+                await get().fetchPublicObjects();
+            } catch (e) {
+                console.warn('公開オブジェクト取得スキップ:', e);
+            }
 
-            // 自分のオブジェクトを取得
+            // 自分のオブジェクトを取得（失敗しても続行）
             if (userId) {
-                const { data } = await supabase
-                    .from('ar_objects')
-                    .select('*')
-                    .eq('owner_id', userId);
+                try {
+                    const { data } = await supabase
+                        .from('ar_objects')
+                        .select('*')
+                        .eq('owner_id', userId);
 
-                if (data) {
-                    const objects: PlacedObject[] = data.map(obj => ({
-                        id: obj.id,
-                        position: obj.position as GeoPosition,
-                        color: obj.color,
-                        name: obj.name,
-                        createdAt: new Date(obj.created_at),
-                        objectType: obj.object_type as ObjectType,
-                        creature: obj.creature as FlyingCreature | undefined,
-                        flightConfig: obj.flight_config as FlightConfig | undefined,
-                        ownerId: obj.owner_id,
-                        isPublic: obj.is_public,
-                    }));
-                    set({ objects });
+                    if (data) {
+                        const objects: PlacedObject[] = data.map(obj => ({
+                            id: obj.id,
+                            position: obj.position as GeoPosition,
+                            color: obj.color,
+                            name: obj.name,
+                            createdAt: new Date(obj.created_at),
+                            objectType: obj.object_type as ObjectType,
+                            creature: obj.creature as FlyingCreature | undefined,
+                            flightConfig: obj.flight_config as FlightConfig | undefined,
+                            ownerId: obj.owner_id,
+                            isPublic: obj.is_public,
+                        }));
+                        set({ objects });
+                    }
+                } catch (e) {
+                    console.warn('自分のオブジェクト取得スキップ:', e);
                 }
             }
         } catch (error) {

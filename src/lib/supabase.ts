@@ -18,22 +18,46 @@ export const supabase = createClient(
     supabaseAnonKey || ''
 );
 
-// ユーザーIDを取得（匿名認証）
-export async function getOrCreateUserId(): Promise<string | null> {
-    // 既存セッション確認
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-        return session.user.id;
-    }
+// タイムアウト付きPromise
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => {
+            console.warn(`タイムアウト (${ms}ms)`);
+            resolve(fallback);
+        }, ms)),
+    ]);
+}
 
-    // 匿名ログイン
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) {
-        console.error('匿名認証エラー:', error);
+// ユーザーIDを取得（匿名認証・タイムアウト付き）
+export async function getOrCreateUserId(): Promise<string | null> {
+    try {
+        // 既存セッション確認（5秒タイムアウト）
+        const sessionResult = await withTimeout(
+            supabase.auth.getSession(),
+            5000,
+            { data: { session: null }, error: null } as any
+        );
+        if (sessionResult.data.session?.user) {
+            return sessionResult.data.session.user.id;
+        }
+
+        // 匿名ログイン（5秒タイムアウト）
+        const { data, error } = await withTimeout(
+            supabase.auth.signInAnonymously(),
+            5000,
+            { data: { user: null, session: null }, error: new Error('タイムアウト') as any }
+        );
+        if (error) {
+            console.error('匿名認証エラー:', error);
+            return null;
+        }
+
+        return data.user?.id || null;
+    } catch (error) {
+        console.error('認証処理エラー:', error);
         return null;
     }
-
-    return data.user?.id || null;
 }
 
 // 現在のユーザーID（同期版）

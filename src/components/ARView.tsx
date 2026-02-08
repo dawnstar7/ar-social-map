@@ -159,17 +159,22 @@ function ARScene({
     );
 }
 
-// 方向ガイド（シンプル版）
+// 方向ガイド（上下左右対応版）
 function DirectionGuide({
     objects,
     devicePosition,
-    heading
+    heading,
+    beta
 }: {
     objects: PlacedObject[];
     devicePosition: GeoPosition;
     heading: number;
+    beta: number | null;
 }) {
     const guides = useMemo(() => {
+        // デバイスの仰角（betaが90で水平、90以上で上向き、90以下で下向き）
+        const devicePitch = beta !== null ? beta - 90 : 0;
+
         return objects.map((obj) => {
             // 方位角を計算
             const dLon = obj.position.longitude - devicePosition.longitude;
@@ -178,35 +183,59 @@ function DirectionGuide({
             let bearing = Math.atan2(dLon, dLat) * (180 / Math.PI);
             if (bearing < 0) bearing += 360;
 
-            // 相対角度
+            // 左右の相対角度
             let relAngle = bearing - heading;
             while (relAngle < -180) relAngle += 360;
             while (relAngle > 180) relAngle -= 360;
 
             const distance = calculateDistance(devicePosition, obj.position);
-            const isVisible = Math.abs(relAngle) < 50; // 視野内
+
+            // 上下の相対角度（オブジェクトの仰角を計算）
+            const objectAlt = (obj.position.altitude || 0) - (devicePosition.altitude || 0);
+            const distanceMeters = distance > 0 ? distance : 1;
+            const elevationAngle = Math.atan2(objectAlt, distanceMeters) * (180 / Math.PI);
+            const verticalAngle = elevationAngle - devicePitch;
+
+            const isHorizontalVisible = Math.abs(relAngle) < 50;
+            const isVerticalVisible = Math.abs(verticalAngle) < 35;
+            const isVisible = isHorizontalVisible && isVerticalVisible;
+
+            // 方向を判定
+            let direction: 'left' | 'right' | 'up' | 'down' | 'visible' = 'visible';
+            if (!isVisible) {
+                if (!isHorizontalVisible) {
+                    direction = relAngle < 0 ? 'left' : 'right';
+                } else {
+                    direction = verticalAngle > 0 ? 'up' : 'down';
+                }
+            }
 
             return {
                 id: obj.id,
                 name: obj.name,
                 color: obj.color,
                 angle: relAngle,
+                verticalAngle,
                 distance,
                 isVisible,
+                direction,
             };
         });
-    }, [objects, devicePosition, heading]);
+    }, [objects, devicePosition, heading, beta]);
 
     return (
         <div className="direction-guide">
             {guides.filter(g => !g.isVisible).map((guide) => (
                 <div
                     key={guide.id}
-                    className={`guide-arrow ${guide.angle < 0 ? 'left' : 'right'}`}
+                    className={`guide-arrow ${guide.direction}`}
                     style={{ borderColor: guide.color }}
                 >
                     <span style={{ color: guide.color }}>
-                        {guide.angle < 0 ? '←' : '→'}
+                        {guide.direction === 'left' && '←'}
+                        {guide.direction === 'right' && '→'}
+                        {guide.direction === 'up' && '↑'}
+                        {guide.direction === 'down' && '↓'}
                     </span>
                     <span className="guide-name">{guide.name}</span>
                     <span className="guide-dist">{guide.distance.toFixed(0)}m</span>
@@ -305,12 +334,13 @@ export function ARView() {
                 </Canvas>
             )}
 
-            {/* 方向ガイド */}
+            {/* 方向ガイド（上下左右対応） */}
             {devicePosition && heading !== null && allObjects.length > 0 && (
                 <DirectionGuide
                     objects={allObjects}
                     devicePosition={devicePosition}
                     heading={heading}
+                    beta={beta}
                 />
             )}
 

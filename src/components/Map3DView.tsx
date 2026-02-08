@@ -48,6 +48,7 @@ export function Map3DView() {
     const [showModeSelect, setShowModeSelect] = useState(false);
     const [showObjectList, setShowObjectList] = useState(false);
     const [showLocationSearch, setShowLocationSearch] = useState(false);
+    const [placeAltitude, setPlaceAltitude] = useState(0); // 配置高度（メートル）
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
@@ -236,26 +237,31 @@ export function Map3DView() {
         return () => clearInterval(interval);
     }, [allObjects]);
 
-    // オブジェクト配置
+    // オブジェクト配置（高度スライダーの値を反映）
     const placeObject = useCallback(() => {
         if (!crosshairPosition) {
             setStatusMessage('位置が取れません');
             return;
         }
 
+        const positionWithAltitude: GeoPosition = {
+            ...crosshairPosition,
+            altitude: placeAltitude,
+        };
+
         if (placeMode === 'static') {
-            addObject(crosshairPosition, `📍 ${userObjects.length + 1}`, '#ff4444');
-            setStatusMessage('ピン配置完了！');
+            addObject(positionWithAltitude, `📍 ${userObjects.length + 1}`, '#ff4444');
+            setStatusMessage(`ピン配置完了！（高度${placeAltitude}m）`);
         } else {
             const creature = placeMode as FlyingCreature;
-            addFlyingObject(crosshairPosition, creature, {
+            addFlyingObject(positionWithAltitude, creature, {
                 radius: 30,
-                minAltitude: 15,
-                maxAltitude: 40,
+                minAltitude: Math.max(placeAltitude, 15),
+                maxAltitude: Math.max(placeAltitude + 25, 40),
             });
-            setStatusMessage(`${creatureNames[creature]} 出現！`);
+            setStatusMessage(`${creatureNames[creature]} 出現！（高度${placeAltitude}m）`);
         }
-    }, [crosshairPosition, placeMode, addObject, addFlyingObject, userObjects.length]);
+    }, [crosshairPosition, placeMode, placeAltitude, addObject, addFlyingObject, userObjects.length]);
 
     const cameraDestination = currentPosition
         ? Cartesian3.fromDegrees(currentPosition.longitude, currentPosition.latitude, 150)
@@ -438,6 +444,28 @@ export function Map3DView() {
                     </button>
                 </div>
             )}
+
+            {/* 高度スライダー */}
+            <div className="altitude-control">
+                <label className="altitude-label">
+                    高度: <strong>{placeAltitude}m</strong>
+                </label>
+                <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    step="5"
+                    value={placeAltitude}
+                    onChange={(e) => setPlaceAltitude(Number(e.target.value))}
+                    className="altitude-slider"
+                />
+                <div className="altitude-presets">
+                    <button onClick={() => setPlaceAltitude(0)} className={placeAltitude === 0 ? 'active' : ''}>地面</button>
+                    <button onClick={() => setPlaceAltitude(10)} className={placeAltitude === 10 ? 'active' : ''}>10m</button>
+                    <button onClick={() => setPlaceAltitude(50)} className={placeAltitude === 50 ? 'active' : ''}>50m</button>
+                    <button onClick={() => setPlaceAltitude(100)} className={placeAltitude === 100 ? 'active' : ''}>100m</button>
+                </div>
+            </div>
 
             {/* 配置ボタン */}
             <button className="place-btn" onClick={placeObject} disabled={!crosshairPosition}>

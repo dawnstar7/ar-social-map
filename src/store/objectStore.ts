@@ -129,7 +129,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             createdAt: new Date(),
             objectType: 'static',
             ownerId: userId || undefined,
-            isPublic: true,
+            isPublic: false,
         };
 
         set((state) => ({
@@ -141,7 +141,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             supabase.from('ar_objects').insert({
                 id: newObject.id,
                 owner_id: userId,
-                is_public: true,
+                is_public: false,
                 position: position,
                 name,
                 color,
@@ -169,7 +169,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             creature,
             flightConfig,
             ownerId: userId || undefined,
-            isPublic: true,
+            isPublic: false,
         };
 
         set((state) => ({
@@ -181,7 +181,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             supabase.from('ar_objects').insert({
                 id: newObject.id,
                 owner_id: userId,
-                is_public: true,
+                is_public: false,
                 position: position,
                 name: newObject.name,
                 color: newObject.color,

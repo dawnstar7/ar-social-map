@@ -42,7 +42,10 @@ function App() {
 
   return (
     <div className="app">
-      {mode === 'map' && <Map3DView />}
+      {/* マップは常にマウントしておき、CSSで表示/非表示を切り替える */}
+      <div style={{ display: mode === 'map' ? 'contents' : 'none' }}>
+        <Map3DView />
+      </div>
       {mode === 'ar' && <ARView />}
       {mode === 'profile' && <ProfileView />}
       <BottomNavBar currentMode={mode} onModeChange={setMode} />

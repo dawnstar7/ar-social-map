@@ -52,13 +52,14 @@ export function Map3DView() {
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, addObject, addFlyingObject, removeObject, clearAll } = useObjectStore();
+    const { objects: userObjects, addObject, addFlyingObject, removeObject, clearAll, userId } = useObjectStore();
 
-    // ユーザーオブジェクト + 開発者オブジェクトを統合
+    // 自分のオブジェクト + 開発者オブジェクトのみ表示（他人のは見えない）
     const allObjects = useMemo(() => {
         const developerObjects = getDeveloperObjectsAsPlaced();
-        return [...developerObjects, ...userObjects];
-    }, [userObjects]);
+        const myObjects = userObjects.filter(obj => obj.ownerId === userId || !obj.ownerId);
+        return [...developerObjects, ...myObjects];
+    }, [userObjects, userId]);
 
     // WebGLサポートチェック（コンテキストを即座に解放してCesiumに渡す）
     useEffect(() => {

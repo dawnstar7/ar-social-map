@@ -643,6 +643,12 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 15px;
 }
 
+.altitude-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
 .altitude-slider {
   width: 100%;
   margin-bottom: 8px;

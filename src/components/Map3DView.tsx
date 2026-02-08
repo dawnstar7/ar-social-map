@@ -244,22 +244,26 @@ export function Map3DView() {
             return;
         }
 
+        // 地面の高さ（crosshairPosition.altitude）+ スライダーの値 = 実際の高度
+        // 例: 地面が50mの場所で100mスライダー → 150m（海抜）に配置
+        const groundAltitude = crosshairPosition.altitude || 0;
         const positionWithAltitude: GeoPosition = {
             ...crosshairPosition,
-            altitude: placeAltitude,
+            altitude: groundAltitude + placeAltitude,
         };
 
         if (placeMode === 'static') {
             addObject(positionWithAltitude, `📍 ${userObjects.length + 1}`, '#ff4444');
-            setStatusMessage(`ピン配置完了！（高度${placeAltitude}m）`);
+            setStatusMessage(`ピン配置完了！（地面+${placeAltitude}m / 海抜${positionWithAltitude.altitude?.toFixed(0)}m）`);
         } else {
             const creature = placeMode as FlyingCreature;
+            const actualAlt = groundAltitude + placeAltitude;
             addFlyingObject(positionWithAltitude, creature, {
                 radius: 30,
-                minAltitude: Math.max(placeAltitude, 15),
-                maxAltitude: Math.max(placeAltitude + 25, 40),
+                minAltitude: Math.max(actualAlt, 15),
+                maxAltitude: Math.max(actualAlt + 25, 40),
             });
-            setStatusMessage(`${creatureNames[creature]} 出現！（高度${placeAltitude}m）`);
+            setStatusMessage(`${creatureNames[creature]} 出現！（地面+${placeAltitude}m）`);
         }
     }, [crosshairPosition, placeMode, placeAltitude, addObject, addFlyingObject, userObjects.length]);
 
@@ -369,35 +373,42 @@ export function Map3DView() {
                             />
                         )}
 
-                        {/* 静止オブジェクト */}
-                        {allObjects.filter(obj => obj.objectType !== 'flying').map((obj) => (
-                            <Entity
-                                key={obj.id}
-                                position={Cartesian3.fromDegrees(
-                                    obj.position.longitude,
-                                    obj.position.latitude,
-                                    (obj.position.altitude || 0) + 5
-                                )}
-                                point={{ pixelSize: 16, color: Color.fromCssColorString(obj.color), outlineColor: Color.WHITE, outlineWidth: 2 }}
-                                label={{
-                                    text: `${obj.name}\n${obj.position.altitude?.toFixed(0) || 0}m`,
-                                    font: '12px sans-serif',
-                                    fillColor: Color.WHITE,
-                                    outlineColor: Color.BLACK,
-                                    outlineWidth: 2,
-                                    pixelOffset: new Cartesian2(0, -30),
-                                }}
-                                onClick={() => { removeObject(obj.id); setStatusMessage('削除'); }}
-                            />
-                        ))}
-
-                        {/* 飛行オブジェクト */}
-                        {allObjects.filter(obj => obj.objectType === 'flying').map((obj) => {
-                            const pos = flyingPositions.get(obj.id) || obj.position;
+                        {/* 静止オブジェクト - altitudeは海抜（地面高度+配置高度）で保存済み */}
+                        {allObjects.filter(obj => obj.objectType !== 'flying').map((obj) => {
+                            // 保存されたaltitudeをそのまま使う（+2mはピンが地面に埋まらないため）
+                            const displayAltitude = (obj.position.altitude || 0) + 2;
                             return (
                                 <Entity
                                     key={obj.id}
-                                    position={Cartesian3.fromDegrees(pos.longitude, pos.latitude, pos.altitude || 20)}
+                                    position={Cartesian3.fromDegrees(
+                                        obj.position.longitude,
+                                        obj.position.latitude,
+                                        displayAltitude
+                                    )}
+                                    point={{ pixelSize: 16, color: Color.fromCssColorString(obj.color), outlineColor: Color.WHITE, outlineWidth: 2 }}
+                                    label={{
+                                        text: `${obj.name}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
+                                        font: '12px sans-serif',
+                                        fillColor: Color.WHITE,
+                                        outlineColor: Color.BLACK,
+                                        outlineWidth: 2,
+                                        pixelOffset: new Cartesian2(0, -30),
+                                        style: 2, // FILL_AND_OUTLINE
+                                    }}
+                                    onClick={() => { removeObject(obj.id); setStatusMessage('削除'); }}
+                                />
+                            );
+                        })}
+
+                        {/* 飛行オブジェクト - altitudeは海抜で保存済み */}
+                        {allObjects.filter(obj => obj.objectType === 'flying').map((obj) => {
+                            const pos = flyingPositions.get(obj.id) || obj.position;
+                            // 飛行中の高度をそのまま使う（最低20mは確保）
+                            const flyAlt = Math.max(pos.altitude || 0, 20);
+                            return (
+                                <Entity
+                                    key={obj.id}
+                                    position={Cartesian3.fromDegrees(pos.longitude, pos.latitude, flyAlt)}
                                     point={{ pixelSize: 20, color: Color.fromCssColorString(obj.color), outlineColor: Color.WHITE, outlineWidth: 3 }}
                                     label={{
                                         text: obj.name,
@@ -406,6 +417,7 @@ export function Map3DView() {
                                         outlineColor: Color.BLACK,
                                         outlineWidth: 2,
                                         pixelOffset: new Cartesian2(0, -35),
+                                        style: 2,
                                     }}
                                     onClick={() => { removeObject(obj.id); setStatusMessage('削除'); }}
                                 />
@@ -448,12 +460,17 @@ export function Map3DView() {
             {/* 高度スライダー */}
             <div className="altitude-control">
                 <label className="altitude-label">
-                    高度: <strong>{placeAltitude}m</strong>
+                    地面から: <strong>+{placeAltitude}m</strong>
+                    {crosshairPosition && (
+                        <span className="altitude-detail">
+                            （海抜{((crosshairPosition.altitude || 0) + placeAltitude).toFixed(0)}m）
+                        </span>
+                    )}
                 </label>
                 <input
                     type="range"
                     min="0"
-                    max="200"
+                    max="500"
                     step="5"
                     value={placeAltitude}
                     onChange={(e) => setPlaceAltitude(Number(e.target.value))}
@@ -464,6 +481,8 @@ export function Map3DView() {
                     <button onClick={() => setPlaceAltitude(10)} className={placeAltitude === 10 ? 'active' : ''}>10m</button>
                     <button onClick={() => setPlaceAltitude(50)} className={placeAltitude === 50 ? 'active' : ''}>50m</button>
                     <button onClick={() => setPlaceAltitude(100)} className={placeAltitude === 100 ? 'active' : ''}>100m</button>
+                    <button onClick={() => setPlaceAltitude(200)} className={placeAltitude === 200 ? 'active' : ''}>200m</button>
+                    <button onClick={() => setPlaceAltitude(500)} className={placeAltitude === 500 ? 'active' : ''}>500m</button>
                 </div>
             </div>
 

@@ -250,14 +250,7 @@ export function ARView() {
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState('');
 
-    const { objects: userObjects } = useObjectStore();
-
-    // ユーザーオブジェクト + 開発者オブジェクトを統合
-    const allObjects = useMemo(() => {
-        const developerObjects = getDeveloperObjectsAsPlaced();
-        return [...developerObjects, ...userObjects];
-    }, [userObjects]);
-
+    const { objects: userObjects, publicObjects } = useObjectStore();
     const { position: devicePosition, error: geoError, accuracy } = useGeolocation();
     const {
         heading,
@@ -267,6 +260,24 @@ export function ARView() {
         requestPermission,
         permissionGranted
     } = useDeviceOrientation();
+
+    // 表示距離（メートル）- この範囲内のオブジェクトだけ表示
+    const VISIBLE_RADIUS = 2000;
+
+    // ユーザーオブジェクト + フォロー中ユーザーのオブジェクト + 開発者オブジェクト
+    // 距離フィルター付き（2km以内のみ）
+    const allObjects = useMemo(() => {
+        const sharedObjects = getDeveloperObjectsAsPlaced();
+        const userObjectIds = new Set(userObjects.map(o => o.id));
+        const otherObjects = sharedObjects.filter(o => !userObjectIds.has(o.id));
+        const merged = [...userObjects, ...otherObjects];
+
+        // 距離フィルター: デバイスの位置がある場合、2km以内のみ
+        if (!devicePosition) return merged;
+        return merged.filter(obj =>
+            calculateDistance(devicePosition, obj.position) <= VISIBLE_RADIUS
+        );
+    }, [userObjects, publicObjects, devicePosition]);
 
     // カメラ起動
     useEffect(() => {

@@ -26,6 +26,7 @@ import { calculateCurrentPosition } from '../utils/flyingBehavior';
 import { getDeveloperObjectsAsPlaced } from '../utils/developerObjects';
 import { ObjectListPanel } from './ObjectListPanel';
 import { LocationSearchPanel } from './LocationSearchPanel';
+import { calculateDistance } from '../utils/coordinates';
 import type { GeoPosition } from '../utils/coordinates';
 
 const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_TOKEN || '';
@@ -53,14 +54,30 @@ export function Map3DView() {
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, addObject, addFlyingObject, removeObject, clearAll, userId } = useObjectStore();
+    const { objects: userObjects, publicObjects, addObject, addFlyingObject, removeObject, clearAll, userId } = useObjectStore();
 
-    // 自分のオブジェクト + 開発者オブジェクトのみ表示（他人のは見えない）
+    // 表示距離（メートル）- この範囲内のオブジェクトだけ表示
+    const VISIBLE_RADIUS = 2000;
+
+    // 自分のオブジェクト + フォロー中ユーザーのオブジェクト + 開発者オブジェクト
+    // 距離フィルター付き（2km以内のみ表示して処理を軽くする）
     const allObjects = useMemo(() => {
-        const developerObjects = getDeveloperObjectsAsPlaced();
+        // getDeveloperObjectsAsPlaced() は publicObjects（フォロー中含む）+ 開発者オブジェクトを返す
+        const sharedObjects = getDeveloperObjectsAsPlaced();
         const myObjects = userObjects.filter(obj => obj.ownerId === userId || !obj.ownerId);
-        return [...developerObjects, ...myObjects];
-    }, [userObjects, userId]);
+
+        // 自分のオブジェクトとsharedObjectsの重複を除外
+        const myObjectIds = new Set(myObjects.map(o => o.id));
+        const otherObjects = sharedObjects.filter(o => !myObjectIds.has(o.id));
+
+        const allUnfiltered = [...myObjects, ...otherObjects];
+
+        // 距離フィルター: 現在位置がある場合、2km以内のみ表示
+        if (!currentPosition) return allUnfiltered;
+        return allUnfiltered.filter(obj =>
+            calculateDistance(currentPosition, obj.position) <= VISIBLE_RADIUS
+        );
+    }, [userObjects, publicObjects, userId, currentPosition]);
 
     // WebGLサポートチェック（コンテキストを即座に解放してCesiumに渡す）
     useEffect(() => {
@@ -375,8 +392,8 @@ export function Map3DView() {
 
                         {/* 静止オブジェクト - altitudeは海抜（地面高度+配置高度）で保存済み */}
                         {allObjects.filter(obj => obj.objectType !== 'flying').map((obj) => {
-                            // 保存されたaltitudeをそのまま使う（+2mはピンが地面に埋まらないため）
                             const displayAltitude = (obj.position.altitude || 0) + 2;
+                            const isOwn = obj.ownerId === userId || !obj.ownerId;
                             return (
                                 <Entity
                                     key={obj.id}
@@ -385,17 +402,29 @@ export function Map3DView() {
                                         obj.position.latitude,
                                         displayAltitude
                                     )}
-                                    point={{ pixelSize: 16, color: Color.fromCssColorString(obj.color), outlineColor: Color.WHITE, outlineWidth: 2 }}
+                                    point={{
+                                        pixelSize: isOwn ? 16 : 12,
+                                        color: Color.fromCssColorString(obj.color),
+                                        outlineColor: isOwn ? Color.WHITE : Color.CYAN,
+                                        outlineWidth: 2,
+                                    }}
                                     label={{
-                                        text: `${obj.name}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
+                                        text: `${obj.name}${!isOwn ? ' 👤' : ''}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
                                         font: '12px sans-serif',
-                                        fillColor: Color.WHITE,
+                                        fillColor: isOwn ? Color.WHITE : Color.CYAN,
                                         outlineColor: Color.BLACK,
                                         outlineWidth: 2,
                                         pixelOffset: new Cartesian2(0, -30),
-                                        style: 2, // FILL_AND_OUTLINE
+                                        style: 2,
                                     }}
-                                    onClick={() => { removeObject(obj.id); setStatusMessage('削除'); }}
+                                    onClick={() => {
+                                        if (isOwn) {
+                                            removeObject(obj.id);
+                                            setStatusMessage('削除');
+                                        } else {
+                                            setStatusMessage(`${obj.name}（他ユーザーのオブジェクト）`);
+                                        }
+                                    }}
                                 />
                             );
                         })}
@@ -403,23 +432,35 @@ export function Map3DView() {
                         {/* 飛行オブジェクト - altitudeは海抜で保存済み */}
                         {allObjects.filter(obj => obj.objectType === 'flying').map((obj) => {
                             const pos = flyingPositions.get(obj.id) || obj.position;
-                            // 飛行中の高度をそのまま使う（最低20mは確保）
                             const flyAlt = Math.max(pos.altitude || 0, 20);
+                            const isOwn = obj.ownerId === userId || !obj.ownerId;
                             return (
                                 <Entity
                                     key={obj.id}
                                     position={Cartesian3.fromDegrees(pos.longitude, pos.latitude, flyAlt)}
-                                    point={{ pixelSize: 20, color: Color.fromCssColorString(obj.color), outlineColor: Color.WHITE, outlineWidth: 3 }}
+                                    point={{
+                                        pixelSize: 20,
+                                        color: Color.fromCssColorString(obj.color),
+                                        outlineColor: isOwn ? Color.WHITE : Color.CYAN,
+                                        outlineWidth: 3,
+                                    }}
                                     label={{
-                                        text: obj.name,
+                                        text: `${obj.name}${!isOwn ? ' 👤' : ''}`,
                                         font: '14px sans-serif',
-                                        fillColor: Color.WHITE,
+                                        fillColor: isOwn ? Color.WHITE : Color.CYAN,
                                         outlineColor: Color.BLACK,
                                         outlineWidth: 2,
                                         pixelOffset: new Cartesian2(0, -35),
                                         style: 2,
                                     }}
-                                    onClick={() => { removeObject(obj.id); setStatusMessage('削除'); }}
+                                    onClick={() => {
+                                        if (isOwn) {
+                                            removeObject(obj.id);
+                                            setStatusMessage('削除');
+                                        } else {
+                                            setStatusMessage(`${obj.name}（他ユーザーのオブジェクト）`);
+                                        }
+                                    }}
                                 />
                             );
                         })}

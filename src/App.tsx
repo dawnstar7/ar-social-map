@@ -12,9 +12,9 @@ type AppMode = 'map' | 'ar' | 'profile';
 
 function App() {
   const [mode, setMode] = useState<AppMode>('map');
-  const { initialize, isInitialized, userId } = useObjectStore();
+  const { initialize, isInitialized, userId, fetchFollowedObjects } = useObjectStore();
   const { initializeProfile } = useProfileStore();
-  const { initializeFollows } = useFollowStore();
+  const { initializeFollows, following } = useFollowStore();
 
   // Supabase初期化 + プロフィール + フォロー初期化
   useEffect(() => {
@@ -27,6 +27,13 @@ function App() {
       initializeFollows(userId);
     }
   }, [isInitialized, userId, initializeProfile, initializeFollows]);
+
+  // フォローリスト変更時 → フォロー中ユーザーのオブジェクトを取得
+  useEffect(() => {
+    if (isInitialized && following.length > 0) {
+      fetchFollowedObjects(following);
+    }
+  }, [isInitialized, following, fetchFollowedObjects]);
 
   // 初期化中の表示
   if (!isInitialized) {

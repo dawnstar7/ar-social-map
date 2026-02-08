@@ -129,7 +129,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             createdAt: new Date(),
             objectType: 'static',
             ownerId: userId || undefined,
-            isPublic: false,
+            isPublic: true,
         };
 
         set((state) => ({
@@ -141,7 +141,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             supabase.from('ar_objects').insert({
                 id: newObject.id,
                 owner_id: userId,
-                is_public: false,
+                is_public: true,
                 position: position,
                 name,
                 color,
@@ -169,7 +169,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             creature,
             flightConfig,
             ownerId: userId || undefined,
-            isPublic: false,
+            isPublic: true,
         };
 
         set((state) => ({
@@ -181,7 +181,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             supabase.from('ar_objects').insert({
                 id: newObject.id,
                 owner_id: userId,
-                is_public: false,
+                is_public: true,
                 position: position,
                 name: newObject.name,
                 color: newObject.color,
@@ -291,6 +291,9 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
     },
 
     fetchFollowedObjects: async (followingIds: string[]) => {
+        // まず公開オブジェクトを最新に（フォロー解除時にクリーンな状態にするため）
+        await get().fetchPublicObjects();
+
         if (followingIds.length === 0) return;
 
         try {
@@ -317,7 +320,7 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
                     ownerId: obj.owner_id,
                     isPublic: true,
                 }));
-                // フォロー中ユーザーのオブジェクトをpublicObjectsに統合
+                // フォロー中ユーザーのオブジェクトをpublicObjectsに統合（重複除外）
                 const { publicObjects } = get();
                 const existingIds = new Set(publicObjects.map(o => o.id));
                 const newObjects = followedObjects.filter(o => !existingIds.has(o.id));

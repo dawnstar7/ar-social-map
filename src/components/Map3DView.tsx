@@ -336,6 +336,10 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
             <div className="cesium-viewer-wrapper">
                 <ErrorBoundary fallback={FallbackUI} onError={() => {
                     localStorage.setItem('cesium_widget_failed_v2', 'true');
+                    // 自動的に2Dマップへフォールバック
+                    if (onFallbackTo2D) {
+                        setTimeout(onFallbackTo2D, 100);
+                    }
                 }}>
                     <Viewer
                         ref={viewerRef}
@@ -350,6 +354,7 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
                         sceneModePicker={false}
                         selectionIndicator={false}
                         infoBox={false}
+                        showRenderLoopErrors={false}
                         style={{
                             position: 'absolute',
                             top: 0,

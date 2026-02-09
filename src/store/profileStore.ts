@@ -23,9 +23,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     initError: false,
 
     initializeProfile: async (userId: string) => {
-        set({ isLoading: true, initError: false });
-
-        // まずフォールバックプロフィールを即座に設定（読み込み中表示を避ける）
+        // フォールバックプロフィールを即座に設定（読み込み中で止まらないように）
         const fallbackName = `User-${userId.substring(0, 4).toUpperCase()}`;
         const fallbackColor = '#6366f1';
         const fallbackProfile: Profile = {
@@ -33,6 +31,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             displayName: fallbackName,
             avatarColor: fallbackColor,
         };
+
+        // 即座にprofileをセット → UIは即描画される
+        set({ profile: fallbackProfile, isLoading: true, initError: false });
 
         try {
             // 既存プロフィールを取得
@@ -73,9 +74,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             });
         } catch (error) {
             console.error('プロフィール初期化エラー:', error);
-            // エラーでもフォールバックプロフィールを設定（読み込み中で止まらないように）
+            // エラーでもフォールバックプロフィールは既にセット済み
             set({
-                profile: fallbackProfile,
                 isLoading: false,
                 initError: true,
             });

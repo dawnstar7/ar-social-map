@@ -1,11 +1,12 @@
 /**
  * 3Dマップコンポーネント（Google Earth風）
- * 
+ *
  * 機能:
  * - 静止ピン配置
  * - 飛行オブジェクト配置（ドラゴン/鳥/UFO）
  * - リアルタイム位置更新
  * - 開発者オブジェクト（全員に表示）
+ * - Google 3Dタイル失敗時は通常の地球儀で表示
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
@@ -35,72 +36,45 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 // 配置モード
 type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo';
 
-export function Map3DView() {
+interface Map3DViewProps {
+    onFallbackTo2D?: () => void;
+}
+
+export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
     const viewerRef = useRef<any>(null);
     const [currentPosition, setCurrentPosition] = useState<GeoPosition | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [tilesLoaded, setTilesLoaded] = useState(false);
+    const [tilesFailed, setTilesFailed] = useState(false);
     const [statusMessage, setStatusMessage] = useState('初期化中...');
     const [crosshairPosition, setCrosshairPosition] = useState<GeoPosition | null>(null);
-    const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
 
     // 配置モード
     const [placeMode, setPlaceMode] = useState<PlaceMode>('static');
     const [showModeSelect, setShowModeSelect] = useState(false);
     const [showObjectList, setShowObjectList] = useState(false);
     const [showLocationSearch, setShowLocationSearch] = useState(false);
-    const [placeAltitude, setPlaceAltitude] = useState(0); // 配置高度（メートル）
+    const [placeAltitude, setPlaceAltitude] = useState(0);
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
     const { objects: userObjects, publicObjects, addObject, addFlyingObject, removeObject, clearAll, userId } = useObjectStore();
 
-    // 表示距離（メートル）- この範囲内のオブジェクトだけ表示
     const VISIBLE_RADIUS = 2000;
 
-    // 自分のオブジェクト + フォロー中ユーザーのオブジェクト + 開発者オブジェクト
-    // 距離フィルター付き（2km以内のみ表示して処理を軽くする）
     const allObjects = useMemo(() => {
-        // getDeveloperObjectsAsPlaced() は publicObjects（フォロー中含む）+ 開発者オブジェクトを返す
         const sharedObjects = getDeveloperObjectsAsPlaced();
         const myObjects = userObjects.filter(obj => obj.ownerId === userId || !obj.ownerId);
-
-        // 自分のオブジェクトとsharedObjectsの重複を除外
         const myObjectIds = new Set(myObjects.map(o => o.id));
         const otherObjects = sharedObjects.filter(o => !myObjectIds.has(o.id));
-
         const allUnfiltered = [...myObjects, ...otherObjects];
 
-        // 距離フィルター: 現在位置がある場合、2km以内のみ表示
         if (!currentPosition) return allUnfiltered;
         return allUnfiltered.filter(obj =>
             calculateDistance(currentPosition, obj.position) <= VISIBLE_RADIUS
         );
     }, [userObjects, publicObjects, userId, currentPosition]);
-
-    // WebGLサポートチェック（コンテキストを即座に解放してCesiumに渡す）
-    useEffect(() => {
-        try {
-            const canvas = document.createElement('canvas');
-            const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext;
-
-            if (!gl) {
-                console.error('WebGL not supported');
-                setWebglSupported(false);
-                return;
-            }
-
-            // コンテキストを即座に解放（iOSはWebGLコンテキスト数に制限あり）
-            const ext = gl.getExtension('WEBGL_lose_context');
-            if (ext) ext.loseContext();
-
-            setWebglSupported(true);
-        } catch (e) {
-            console.error('WebGL check error:', e);
-            setWebglSupported(false);
-        }
-    }, []);
 
     // Cesium ion認証
     useEffect(() => {
@@ -109,7 +83,7 @@ export function Map3DView() {
         }
     }, []);
 
-    // 現在地取得（高精度→低精度の順で試行）
+    // 現在地取得
     const locateMe = useCallback(() => {
         if (!navigator.geolocation) {
             setShowLocationSearch(true);
@@ -130,11 +104,9 @@ export function Map3DView() {
             setStatusMessage('');
         };
 
-        // まず高精度で試す
         navigator.geolocation.getCurrentPosition(
             onSuccess,
             () => {
-                // 高精度失敗 → 低精度で再試行
                 setStatusMessage('GPS再試行中...');
                 navigator.geolocation.getCurrentPosition(
                     onSuccess,
@@ -153,9 +125,9 @@ export function Map3DView() {
 
     useEffect(() => { locateMe(); }, [locateMe]);
 
-    // 3Dタイル読み込み
+    // 3Dタイル読み込み（失敗しても通常のCesium地球儀で表示を続行）
     useEffect(() => {
-        if (tilesLoaded || !currentPosition) return;
+        if (tilesLoaded || tilesFailed || !currentPosition) return;
 
         const viewer = viewerRef.current?.cesiumElement;
         if (!viewer) return;
@@ -181,13 +153,14 @@ export function Map3DView() {
                 setTilesLoaded(true);
                 setStatusMessage('');
             } catch (error) {
-                console.error('3Dタイルエラー:', error);
-                setStatusMessage('読み込み失敗');
+                console.warn('3Dタイル読み込み失敗、通常の地球儀で表示:', error);
+                setTilesFailed(true);
+                setStatusMessage('');
             }
         }
 
         setTimeout(loadTiles, 1000);
-    }, [currentPosition, tilesLoaded]);
+    }, [currentPosition, tilesLoaded, tilesFailed]);
 
     // 照準位置更新
     useEffect(() => {
@@ -227,7 +200,7 @@ export function Map3DView() {
             clearTimeout(timer);
             cancelAnimationFrame(animationId);
         };
-    }, [tilesLoaded]);
+    }, [tilesLoaded, tilesFailed]);
 
     // 飛行オブジェクトの位置をリアルタイム更新
     useEffect(() => {
@@ -249,20 +222,18 @@ export function Map3DView() {
         };
 
         updatePositions();
-        const interval = setInterval(updatePositions, 100); // 10FPS
+        const interval = setInterval(updatePositions, 100);
 
         return () => clearInterval(interval);
     }, [allObjects]);
 
-    // オブジェクト配置（高度スライダーの値を反映）
+    // オブジェクト配置
     const placeObject = useCallback(() => {
         if (!crosshairPosition) {
             setStatusMessage('位置が取れません');
             return;
         }
 
-        // 地面の高さ（crosshairPosition.altitude）+ スライダーの値 = 実際の高度
-        // 例: 地面が50mの場所で100mスライダー → 150m（海抜）に配置
         const groundAltitude = crosshairPosition.altitude || 0;
         const positionWithAltitude: GeoPosition = {
             ...crosshairPosition,
@@ -297,36 +268,7 @@ export function Map3DView() {
         }
     };
 
-    // WebGLがサポートされていない場合のフォールバック
-    if (webglSupported === false) {
-        return (
-            <div className="map-container cesium-container">
-                <div className="map-header">
-                    <h2>🌍 3Dマップ</h2>
-                </div>
-                <div className="webgl-error">
-                    <div className="error-content">
-                        <h3>⚠️ WebGLエラー</h3>
-                        <p>このデバイスは3Dマップをサポートしていないか、エラーが発生しました。</p>
-                        <p>下のナビからARモードをお試しください。</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // WebGL判定中（または初期化中）
-    if (webglSupported === null) {
-        return (
-            <div className="app loading">
-                <div className="loading-spinner">
-                    <div className="spinner"></div>
-                    <p>3Dマップを準備中...</p>
-                </div>
-            </div>
-        );
-    }
-
+    // ErrorBoundaryがキャッチした場合のUI
     const FallbackUI = (
         <div className="map-container cesium-container">
             <div className="map-header">
@@ -334,9 +276,13 @@ export function Map3DView() {
             </div>
             <div className="webgl-error">
                 <div className="error-content">
-                    <h3>⚠️ 3Dマップエラー</h3>
-                    <p>3Dマップの表示中にエラーが発生しました。</p>
-                    <p>下のナビからARモードをお試しください。</p>
+                    <h3>3Dマップの初期化に失敗しました</h3>
+                    <p>お使いのブラウザでは3Dマップが表示できない可能性があります。</p>
+                    {onFallbackTo2D && (
+                        <button className="fallback-2d-btn" onClick={onFallbackTo2D}>
+                            🗺️ 2Dマップに切り替える
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -354,25 +300,32 @@ export function Map3DView() {
                     <button className="icon-btn" onClick={locateMe} disabled={isLocating}>
                         {isLocating ? '⏳' : '📍'}
                     </button>
+                    {onFallbackTo2D && (
+                        <button className="icon-btn" onClick={onFallbackTo2D} title="2Dマップに切り替え">
+                            🗺️
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Cesiumビューア (ErrorBoundaryでラップ) */}
             <div className="cesium-viewer-wrapper">
-                <ErrorBoundary fallback={FallbackUI}>
+                <ErrorBoundary fallback={FallbackUI} onError={() => {
+                    localStorage.setItem('cesium_widget_failed_v2', 'true');
+                }}>
                     <Viewer
                         ref={viewerRef}
                         full
                         timeline={false}
                         animation={false}
                         fullscreenButton={false}
-                        baseLayerPicker={true} // 航空写真と地図を切り替えられるように
-                        navigationHelpButton={false} // ヘルプボタンを消す
-                        homeButton={false} // ホームボタンを消す
-                        geocoder={false} // 検索バーを消す
-                        sceneModePicker={false} // 2D/3D切り替えを消す
-                        selectionIndicator={false} // 緑の枠を消す
-                        infoBox={false} // 情報を消す
+                        baseLayerPicker={true}
+                        navigationHelpButton={false}
+                        homeButton={false}
+                        geocoder={false}
+                        sceneModePicker={false}
+                        selectionIndicator={false}
+                        infoBox={false}
                         style={{
                             position: 'absolute',
                             top: 0,
@@ -390,7 +343,7 @@ export function Map3DView() {
                             />
                         )}
 
-                        {/* 静止オブジェクト - altitudeは海抜（地面高度+配置高度）で保存済み */}
+                        {/* 静止オブジェクト */}
                         {allObjects.filter(obj => obj.objectType !== 'flying').map((obj) => {
                             const displayAltitude = (obj.position.altitude || 0) + 2;
                             const isOwn = obj.ownerId === userId || !obj.ownerId;
@@ -429,7 +382,7 @@ export function Map3DView() {
                             );
                         })}
 
-                        {/* 飛行オブジェクト - altitudeは海抜で保存済み */}
+                        {/* 飛行オブジェクト */}
                         {allObjects.filter(obj => obj.objectType === 'flying').map((obj) => {
                             const pos = flyingPositions.get(obj.id) || obj.position;
                             const flyAlt = Math.max(pos.altitude || 0, 20);

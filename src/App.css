@@ -236,6 +236,22 @@ button {
   margin-top: 16px;
 }
 
+.fallback-2d-btn {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: var(--primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.fallback-2d-btn:active {
+  transform: scale(0.95);
+}
+
 .cesium-container .bottom-panel {
   position: absolute;
   bottom: var(--nav-bar-height);

@@ -70,8 +70,9 @@ export function ProfileView() {
     }, [userId]);
 
     const clearLocationCache = useCallback(() => {
+        localStorage.removeItem('cesium_widget_failed_v2');
         localStorage.removeItem('cesium_failed');
-        alert('位置キャッシュをクリアしました。次回マップを開くとき、3Dマップが再試行されます。');
+        alert('3Dマップ設定をリセットしました。次回マップを開くとき、3Dマップが再試行されます。');
     }, []);
 
     // ローディング中でもプロフィール未設定時は最低限のUI表示

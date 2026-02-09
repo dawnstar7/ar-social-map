@@ -10,6 +10,7 @@ export interface Profile {
 interface ProfileStore {
     profile: Profile | null;
     isLoading: boolean;
+    initError: boolean;
 
     initializeProfile: (userId: string) => Promise<void>;
     updateDisplayName: (name: string) => Promise<void>;
@@ -19,9 +20,19 @@ interface ProfileStore {
 export const useProfileStore = create<ProfileStore>((set, get) => ({
     profile: null,
     isLoading: false,
+    initError: false,
 
     initializeProfile: async (userId: string) => {
-        set({ isLoading: true });
+        set({ isLoading: true, initError: false });
+
+        // まずフォールバックプロフィールを即座に設定（読み込み中表示を避ける）
+        const fallbackName = `User-${userId.substring(0, 4).toUpperCase()}`;
+        const fallbackColor = '#6366f1';
+        const fallbackProfile: Profile = {
+            id: userId,
+            displayName: fallbackName,
+            avatarColor: fallbackColor,
+        };
 
         try {
             // 既存プロフィールを取得
@@ -44,15 +55,12 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             }
 
             // プロフィールが無い場合は自動作成
-            const defaultName = `User-${userId.substring(0, 4).toUpperCase()}`;
-            const defaultColor = '#6366f1';
-
             const { error: insertError } = await supabase
                 .from('profiles')
                 .insert({
                     id: userId,
-                    display_name: defaultName,
-                    avatar_color: defaultColor,
+                    display_name: fallbackName,
+                    avatar_color: fallbackColor,
                 });
 
             if (insertError) {
@@ -60,16 +68,17 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
             }
 
             set({
-                profile: {
-                    id: userId,
-                    displayName: defaultName,
-                    avatarColor: defaultColor,
-                },
+                profile: fallbackProfile,
                 isLoading: false,
             });
         } catch (error) {
             console.error('プロフィール初期化エラー:', error);
-            set({ isLoading: false });
+            // エラーでもフォールバックプロフィールを設定（読み込み中で止まらないように）
+            set({
+                profile: fallbackProfile,
+                isLoading: false,
+                initError: true,
+            });
         }
     },
 

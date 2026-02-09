@@ -26,6 +26,9 @@ function App() {
     if (isInitialized && userId) {
       initializeProfile(userId);
       initializeFollows(userId);
+    } else if (isInitialized && !userId) {
+      // 認証タイムアウト時もフォールバックプロフィールを設定
+      initializeProfile('anonymous');
     }
   }, [isInitialized, userId, initializeProfile, initializeFollows]);
 

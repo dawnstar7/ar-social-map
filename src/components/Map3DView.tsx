@@ -339,6 +339,16 @@ export function Map3DView() {
                         selectionIndicator={false}
                         infoBox={false}
                         showRenderLoopErrors={false}
+                        contextOptions={{
+                            webgl: {
+                                alpha: true,
+                                antialias: true,
+                                preserveDrawingBuffer: true,
+                                failIfMajorPerformanceCaveat: false,
+                            },
+                        }}
+                        requestRenderMode={true}
+                        maximumRenderTimeChange={Infinity}
                         style={{
                             position: 'absolute',
                             top: 0,

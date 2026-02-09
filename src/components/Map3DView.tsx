@@ -135,22 +135,35 @@ export function Map3DView() {
 
         async function loadTiles() {
             try {
+                console.log('Starting loadTiles...');
                 setStatusMessage('3Dマップ読み込み中...');
 
                 let tileset: Cesium3DTileset;
                 if (GOOGLE_API_KEY) {
+                    console.log('Loading Google Tiles...');
                     tileset = await Cesium3DTileset.fromUrl(
                         `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`
-                    );
+                    ).catch(e => { throw new Error(`Google Tiles load failed: ${e.message}`); });
                 } else {
-                    tileset = await Cesium3DTileset.fromIonAssetId(2275207);
+                    console.log('Loading Ion Asset...');
+                    tileset = await Cesium3DTileset.fromIonAssetId(2275207)
+                        .catch(e => { throw new Error(`Ion Asset load failed: ${e.message}`); });
                 }
+
+                if (!tileset) {
+                    throw new Error('Tileset is null after loading');
+                }
+
+                console.log('Tileset loaded, adding to primitives...');
+                if (viewer.isDestroyed()) return;
 
                 viewer.scene.primitives.add(tileset);
                 setTilesLoaded(true);
                 setStatusMessage('');
-            } catch (error) {
+                console.log('Tileset added successfully');
+            } catch (error: any) {
                 console.warn('3Dタイル読み込み失敗、通常の地球儀で表示:', error);
+                setGlobalError(`Tile Warning: ${error.message}`); // 警告として表示
                 setTilesFailed(true);
                 setStatusMessage('');
             }

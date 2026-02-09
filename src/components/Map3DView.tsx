@@ -274,9 +274,10 @@ export function Map3DView() {
         }
     }, [crosshairPosition, placeMode, placeAltitude, addObject, addFlyingObject, userObjects.length]);
 
-    const cameraDestination = currentPosition
-        ? Cartesian3.fromDegrees(currentPosition.longitude, currentPosition.latitude, 150)
-        : undefined;
+    const cameraDestination = useMemo(() => {
+        if (!currentPosition) return undefined;
+        return Cartesian3.fromDegrees(currentPosition.longitude, currentPosition.latitude, 150);
+    }, [currentPosition]);
 
     const getPlaceModeLabel = () => {
         switch (placeMode) {
@@ -350,6 +351,24 @@ export function Map3DView() {
         });
     }, [currentPosition]);
 
+    // ViewerのPropsをメモ化（再レンダリング時のクラッシュ防止）
+    const contextOptions = useMemo(() => ({
+        webgl: {
+            alpha: false,
+            antialias: false,
+            powerPreference: "high-performance" as const, // 型アサーション追加
+            failIfMajorPerformanceCaveat: false,
+        },
+    }), []);
+
+    const viewerStyle = useMemo(() => ({
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    }), []);
+
     return (
         <div className="map-container cesium-container">
             {/* ヘッダー */}
@@ -385,23 +404,10 @@ export function Map3DView() {
                         selectionIndicator={false}
                         infoBox={false}
                         showRenderLoopErrors={false}
-                        contextOptions={{
-                            webgl: {
-                                alpha: false, // 透明背景を無効化（iOSでのクラッシュ防止）
-                                antialias: false, // アンチエイリアス無効化（メモリ節約）
-                                powerPreference: "high-performance",
-                                failIfMajorPerformanceCaveat: false,
-                            },
-                        }}
+                        contextOptions={contextOptions}
                         requestRenderMode={true}
                         maximumRenderTimeChange={Infinity}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                        }}
+                        style={viewerStyle}
                     >
                         {cameraDestination && (
                             <CameraFlyTo

@@ -167,26 +167,35 @@ export function Map3DView() {
         let animationId: number;
 
         const updateCrosshair = () => {
-            const canvas = viewer.scene.canvas;
-            const center = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
+            if (!viewer || viewer.isDestroyed()) return;
 
-            let cartesian = viewer.scene.pickPosition(center);
-            if (!cartesian) {
-                const ray = viewer.camera.getPickRay(center);
-                if (ray) {
-                    cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            // シーンやカメラのチェック
+            if (!viewer.scene || !viewer.camera) return;
+
+            try {
+                const canvas = viewer.scene.canvas;
+                if (!canvas) return;
+
+                const center = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
+
+                let cartesian = viewer.scene.pickPosition(center);
+                if (!cartesian) {
+                    const ray = viewer.camera.getPickRay(center);
+                    if (ray) {
+                        cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+                    }
                 }
-            }
 
-            if (cartesian) {
-                try {
+                if (cartesian) {
                     const cartographic = Cartographic.fromCartesian(cartesian);
                     setCrosshairPosition({
                         latitude: CesiumMath.toDegrees(cartographic.latitude),
                         longitude: CesiumMath.toDegrees(cartographic.longitude),
                         altitude: Math.max(0, cartographic.height || 0),
                     });
-                } catch { /* ignore */ }
+                }
+            } catch (e) {
+                // 無視（レンダリング中の競合などでエラーになる場合がある）
             }
 
             animationId = requestAnimationFrame(updateCrosshair);

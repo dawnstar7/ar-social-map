@@ -49,7 +49,7 @@ export async function getOrCreateUserId(): Promise<string | null> {
             { data: { user: null, session: null }, error: new Error('タイムアウト') as any }
         );
         if (error) {
-            console.error('匿名認証エラー:', error);
+            console.warn('匿名認証失敗（オフラインまたは制限）:', error.message);
             return null;
         }
 

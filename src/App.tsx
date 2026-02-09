@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { SmartMapView } from './components/SmartMapView';
 import { ARView } from './components/ARView';
 import { ProfileView } from './components/ProfileView';
 import { FeedView } from './components/FeedView';
@@ -51,29 +50,50 @@ function App() {
 
   return (
     <div className="app">
-      {/* ホームフィード */}
       {mode === 'home' && (
-        <FeedView onNavigateToMap={() => setMode('map')} />
+        <FeedView
+          onNavigateToMap={() => setMode('map')}
+          onNavigateToSearch={() => setMode('search')}
+        />
       )}
 
-      {/* マップは常にマウントしておき、CSSで表示/非表示を切り替える */}
-      <div style={{ display: mode === 'map' ? 'contents' : 'none' }}>
-        <SmartMapView />
-      </div>
+      {/* マップは選択時のみマウント（SmartMapView内でLeaflet/Cesium切替） */}
+      {mode === 'map' && <SmartMapViewLazy />}
 
-      {/* AR */}
       {mode === 'ar' && <ARView />}
 
-      {/* 検索 */}
       {mode === 'search' && (
         <SearchView onNavigateToMap={() => setMode('map')} />
       )}
 
-      {/* プロフィール */}
       {mode === 'profile' && <ProfileView />}
 
       <BottomNavBar currentMode={mode} onModeChange={setMode} />
     </div>
+  );
+}
+
+// SmartMapViewを遅延ロード（Leaflet/Cesiumの両方をマップタブ選択時のみロード）
+import { lazy, Suspense } from 'react';
+const SmartMapViewComponent = lazy(() =>
+  import('./components/SmartMapView').then(m => ({ default: m.SmartMapView }))
+);
+
+function SmartMapViewLazy() {
+  return (
+    <Suspense fallback={
+      <div className="map-container">
+        <div className="map-header"><h2>🌍 マップ</h2></div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p>マップを読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <SmartMapViewComponent />
+    </Suspense>
   );
 }
 

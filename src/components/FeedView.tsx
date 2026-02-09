@@ -1,17 +1,21 @@
 /**
  * フィードビュー（ホームタブ） - SNSタイムライン
  *
- * フォロー中ユーザーのオブジェクト配置をタイムラインで表示。
+ * - ウェルカムセクション + ユーザー統計
+ * - クイックアクション
+ * - フォロー中ユーザーのオブジェクト配置タイムライン
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import { useFeedStore, type FeedItem } from '../store/feedStore';
 import { useFollowStore } from '../store/followStore';
 import { useObjectStore, creatureEmoji } from '../store/objectStore';
+import { useProfileStore } from '../store/profileStore';
 import { UserProfileView } from './UserProfileView';
 
 interface FeedViewProps {
     onNavigateToMap?: () => void;
+    onNavigateToSearch?: () => void;
 }
 
 // 相対時間表示
@@ -66,10 +70,11 @@ function FeedCard({ item, onViewProfile }: { item: FeedItem; onViewProfile: (use
     );
 }
 
-export function FeedView({ onNavigateToMap }: FeedViewProps) {
+export function FeedView({ onNavigateToMap, onNavigateToSearch }: FeedViewProps) {
     const { items, isLoading, hasMore, fetchFeed, loadMore, refresh } = useFeedStore();
-    const { following } = useFollowStore();
-    const { isInitialized } = useObjectStore();
+    const { following, followers, followingProfiles } = useFollowStore();
+    const { isInitialized, objects } = useObjectStore();
+    const { profile } = useProfileStore();
     const [viewingProfile, setViewingProfile] = useState<string | null>(null);
 
     // フォローリストが変わったらフィード更新
@@ -97,52 +102,120 @@ export function FeedView({ onNavigateToMap }: FeedViewProps) {
             </div>
 
             <div className="feed-content">
-                {following.length === 0 ? (
-                    <div className="feed-empty">
-                        <div className="feed-empty-icon">👥</div>
-                        <p className="feed-empty-title">フィードはまだ空です</p>
-                        <p className="feed-empty-desc">
-                            ユーザーをフォローすると、<br />
-                            配置したオブジェクトがここに表示されます
-                        </p>
-                    </div>
-                ) : items.length === 0 && !isLoading ? (
-                    <div className="feed-empty">
-                        <div className="feed-empty-icon">📭</div>
-                        <p className="feed-empty-title">まだ投稿がありません</p>
-                        <p className="feed-empty-desc">
-                            フォロー中のユーザーがオブジェクトを<br />
-                            配置すると、ここに表示されます
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        {items.map((item) => (
-                            <FeedCard
-                                key={item.id}
-                                item={item}
-                                onViewProfile={setViewingProfile}
-                            />
-                        ))}
-
-                        {hasMore && (
-                            <button
-                                className="feed-load-more"
-                                onClick={handleLoadMore}
-                                disabled={isLoading}
+                {/* ウェルカムセクション */}
+                {profile && (
+                    <div className="feed-welcome">
+                        <div className="feed-welcome-row">
+                            <div
+                                className="feed-welcome-avatar"
+                                style={{ background: profile.avatarColor }}
                             >
-                                {isLoading ? '読み込み中...' : 'もっと見る'}
-                            </button>
-                        )}
-                    </>
-                )}
+                                {profile.displayName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="feed-welcome-text">
+                                <span className="feed-welcome-greeting">こんにちは</span>
+                                <span className="feed-welcome-name">{profile.displayName}</span>
+                            </div>
+                        </div>
 
-                {isLoading && items.length === 0 && (
-                    <div className="feed-loading">
-                        <div className="spinner"></div>
-                        <p>読み込み中...</p>
+                        {/* ステータスカード */}
+                        <div className="feed-stats-row">
+                            <div className="feed-stat-card">
+                                <span className="feed-stat-num">{objects.length}</span>
+                                <span className="feed-stat-lbl">オブジェクト</span>
+                            </div>
+                            <div className="feed-stat-card">
+                                <span className="feed-stat-num">{following.length}</span>
+                                <span className="feed-stat-lbl">フォロー</span>
+                            </div>
+                            <div className="feed-stat-card">
+                                <span className="feed-stat-num">{followers.length}</span>
+                                <span className="feed-stat-lbl">フォロワー</span>
+                            </div>
+                        </div>
                     </div>
                 )}
+
+                {/* クイックアクション */}
+                <div className="feed-actions">
+                    <button className="feed-action-btn" onClick={onNavigateToMap}>
+                        <span className="feed-action-icon">🌍</span>
+                        <span className="feed-action-label">マップを開く</span>
+                    </button>
+                    <button className="feed-action-btn" onClick={onNavigateToSearch}>
+                        <span className="feed-action-icon">👥</span>
+                        <span className="feed-action-label">ユーザーを探す</span>
+                    </button>
+                </div>
+
+                {/* フォロー中のユーザー一覧（横スクロール） */}
+                {followingProfiles.length > 0 && (
+                    <div className="feed-following-section">
+                        <h3 className="feed-section-title">フォロー中</h3>
+                        <div className="feed-following-scroll">
+                            {followingProfiles.map((user) => (
+                                <button
+                                    key={user.id}
+                                    className="feed-following-chip"
+                                    onClick={() => setViewingProfile(user.id)}
+                                >
+                                    <div
+                                        className="feed-following-avatar"
+                                        style={{ background: user.avatarColor }}
+                                    >
+                                        {user.displayName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="feed-following-name">{user.displayName}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* タイムライン */}
+                <div className="feed-timeline-section">
+                    <h3 className="feed-section-title">タイムライン</h3>
+
+                    {following.length === 0 ? (
+                        <div className="feed-empty-mini">
+                            <p>ユーザーをフォローすると、活動が表示されます</p>
+                            <button className="feed-empty-btn" onClick={onNavigateToSearch}>
+                                ユーザーを探す
+                            </button>
+                        </div>
+                    ) : items.length === 0 && !isLoading ? (
+                        <div className="feed-empty-mini">
+                            <p>フォロー中のユーザーの投稿はまだありません</p>
+                        </div>
+                    ) : (
+                        <>
+                            {items.map((item) => (
+                                <FeedCard
+                                    key={item.id}
+                                    item={item}
+                                    onViewProfile={setViewingProfile}
+                                />
+                            ))}
+
+                            {hasMore && (
+                                <button
+                                    className="feed-load-more"
+                                    onClick={handleLoadMore}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? '読み込み中...' : 'もっと見る'}
+                                </button>
+                            )}
+                        </>
+                    )}
+
+                    {isLoading && items.length === 0 && following.length > 0 && (
+                        <div className="feed-loading">
+                            <div className="spinner"></div>
+                            <p>読み込み中...</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ユーザープロフィール表示 */}

@@ -1040,7 +1040,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .bottom-nav-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -1334,4 +1334,395 @@ input[type="range"]::-webkit-slider-thumb {
 .location-preset-name {
   font-weight: 500;
   letter-spacing: 0.3px;
+}
+
+/* ======================================
+   Feed View (Home Tab)
+   ====================================== */
+.feed-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  padding-bottom: var(--nav-bar-height);
+}
+
+.feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.feed-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.feed-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px;
+}
+
+.feed-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.feed-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.feed-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.feed-card-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feed-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.feed-username:active {
+  opacity: 0.7;
+}
+
+.feed-timestamp {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.feed-card-content {
+  padding-left: 52px;
+}
+
+.feed-object-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--background);
+  border-radius: 12px;
+}
+
+.feed-object-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.feed-object-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feed-object-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.feed-object-type {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.feed-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.feed-empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.feed-empty-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.feed-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.feed-load-more {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 8px;
+  border: 1px solid var(--glass-border);
+}
+
+.feed-load-more:active {
+  background: var(--surface-light);
+}
+
+/* ======================================
+   Search View (Search Tab)
+   ====================================== */
+.search-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  padding-bottom: var(--nav-bar-height);
+}
+
+.search-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.search-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.search-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 16px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--primary);
+}
+
+.search-btn {
+  padding: 12px 20px;
+  background: var(--primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.search-btn:disabled {
+  opacity: 0.5;
+}
+
+.search-results {
+  padding: 0 16px;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-result-profile {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.search-result-profile:active {
+  opacity: 0.7;
+}
+
+.search-result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.search-hint-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.search-hint p {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.search-hint-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ======================================
+   User Profile View (Modal)
+   ====================================== */
+.user-profile-panel {
+  max-height: 80vh;
+}
+
+.user-profile-content {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px;
+}
+
+.user-profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px;
+  gap: 12px;
+}
+
+.user-profile-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.follow-btn-large {
+  padding: 10px 32px;
+  background: var(--primary);
+  color: white;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.follow-btn-large.following {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--glass-border);
+}
+
+.follow-btn-large:active {
+  transform: scale(0.95);
+}
+
+.user-profile-objects {
+  padding: 16px 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ======================================
+   Map FAB (Floating Action Button)
+   ====================================== */
+.map-fab {
+  position: absolute;
+  bottom: calc(20px + var(--nav-bar-height));
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  font-size: 28px;
+  font-weight: 300;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.map-fab:active {
+  transform: scale(0.9);
 }

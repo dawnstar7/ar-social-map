@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Map3DView } from './components/Map3DView';
+import { SmartMapView } from './components/SmartMapView';
 import { ARView } from './components/ARView';
 import { ProfileView } from './components/ProfileView';
+import { FeedView } from './components/FeedView';
+import { SearchView } from './components/SearchView';
 import { BottomNavBar } from './components/BottomNavBar';
 import { useObjectStore } from './store/objectStore';
 import { useProfileStore } from './store/profileStore';
 import { useFollowStore } from './store/followStore';
 import './App.css';
 
-type AppMode = 'map' | 'ar' | 'profile';
+type AppMode = 'home' | 'map' | 'ar' | 'search' | 'profile';
 
 function App() {
-  const [mode, setMode] = useState<AppMode>('map');
+  const [mode, setMode] = useState<AppMode>('home');
   const { initialize, isInitialized, userId, fetchFollowedObjects } = useObjectStore();
   const { initializeProfile } = useProfileStore();
   const { initializeFollows, following } = useFollowStore();
@@ -49,12 +51,27 @@ function App() {
 
   return (
     <div className="app">
+      {/* ホームフィード */}
+      {mode === 'home' && (
+        <FeedView onNavigateToMap={() => setMode('map')} />
+      )}
+
       {/* マップは常にマウントしておき、CSSで表示/非表示を切り替える */}
       <div style={{ display: mode === 'map' ? 'contents' : 'none' }}>
-        <Map3DView />
+        <SmartMapView />
       </div>
+
+      {/* AR */}
       {mode === 'ar' && <ARView />}
+
+      {/* 検索 */}
+      {mode === 'search' && (
+        <SearchView onNavigateToMap={() => setMode('map')} />
+      )}
+
+      {/* プロフィール */}
       {mode === 'profile' && <ProfileView />}
+
       <BottomNavBar currentMode={mode} onModeChange={setMode} />
     </div>
   );

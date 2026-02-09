@@ -1,4 +1,4 @@
-type AppMode = 'map' | 'ar' | 'profile';
+type AppMode = 'home' | 'map' | 'ar' | 'search' | 'profile';
 
 interface BottomNavBarProps {
     currentMode: AppMode;
@@ -6,8 +6,10 @@ interface BottomNavBarProps {
 }
 
 const tabs: { mode: AppMode; icon: string; label: string }[] = [
+    { mode: 'home', icon: '🏠', label: 'ホーム' },
     { mode: 'map', icon: '🌍', label: 'マップ' },
     { mode: 'ar', icon: '📷', label: 'AR' },
+    { mode: 'search', icon: '🔍', label: 'さがす' },
     { mode: 'profile', icon: '👤', label: 'マイページ' },
 ];
 

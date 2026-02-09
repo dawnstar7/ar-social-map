@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useProfileStore } from '../store/profileStore';
 import { useObjectStore, creatureEmoji, type FlyingCreature } from '../store/objectStore';
 import { useFollowStore } from '../store/followStore';
-import { UserSearchPanel } from './UserSearchPanel';
 
 const AVATAR_COLORS = [
     '#6366f1', '#f43f5e', '#22c55e', '#f59e0b',
@@ -15,7 +14,6 @@ export function ProfileView() {
     const { following, followers } = useFollowStore();
     const [editingName, setEditingName] = useState(false);
     const [nameInput, setNameInput] = useState('');
-    const [showUserSearch, setShowUserSearch] = useState(false);
 
     const startEditName = () => {
         setNameInput(profile?.displayName || '');
@@ -115,13 +113,11 @@ export function ProfileView() {
                             <span className="profile-stat-number">{followers.length}</span>
                             <span className="profile-stat-label">フォロワー</span>
                         </div>
+                        <div className="profile-stat">
+                            <span className="profile-stat-number">{objects.length}</span>
+                            <span className="profile-stat-label">オブジェクト</span>
+                        </div>
                     </div>
-                    <button
-                        className="profile-find-users-btn"
-                        onClick={() => setShowUserSearch(true)}
-                    >
-                        ユーザーを探す
-                    </button>
                 </div>
 
                 {/* マイオブジェクト */}
@@ -131,7 +127,7 @@ export function ProfileView() {
                     </h3>
                     {objects.length === 0 ? (
                         <div className="profile-empty">
-                            オブジェクトがありません
+                            マップからオブジェクトを配置してみましょう
                         </div>
                     ) : (
                         <div className="profile-object-list">
@@ -153,11 +149,6 @@ export function ProfileView() {
                     )}
                 </div>
             </div>
-
-            <UserSearchPanel
-                isOpen={showUserSearch}
-                onClose={() => setShowUserSearch(false)}
-            />
         </div>
     );
 }

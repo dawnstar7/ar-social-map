@@ -57,14 +57,15 @@ function ARObject({
         const z = -latDiff * metersPerDegreeLat;
         const x = lonDiff * metersPerDegreeLon;
 
-        // 高度計算（相対高度）
+        // 高度計算（相対高度 + キャリブレーション）
         const objectAlt = pos.altitude || 0;
         const deviceAlt = devicePosition.altitude || 0;
+        const calibrationOffset = Number(localStorage.getItem('ar_calibration_offset') || '0');
 
-        // オブジェクトの高さ - デバイスの高さ
-        // デバイス位置（カメラ位置）を0（y=0）とするので、地面にある物体は y = -1.6 (身長分下) くらいになるべき
-        // ここでは単純に相対高度差を使用
-        const y = objectAlt - deviceAlt;
+        // デバイスの補正後高度
+        // deviceAlt + calibrationOffset = 補正後のデバイス高度
+        // y = objectAlt - correctedDeviceAlt
+        const y = objectAlt - (deviceAlt + calibrationOffset);
 
         return new THREE.Vector3(x, y, z);
     }, [devicePosition]);
@@ -258,6 +259,17 @@ export function ARView() {
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState('');
 
+    // キャリブレーション（高さ調整）
+    const [showCalibration, setShowCalibration] = useState(false);
+    const [calibrationOffset, setCalibrationOffset] = useState(() => {
+        return Number(localStorage.getItem('ar_calibration_offset') || '0');
+    });
+
+    // キャリブレーション変更時に保存
+    useEffect(() => {
+        localStorage.setItem('ar_calibration_offset', calibrationOffset.toString());
+    }, [calibrationOffset]);
+
     const { objects: userObjects, publicObjects } = useObjectStore();
     const { position: devicePosition, error: geoError, accuracy } = useGeolocation();
     const {
@@ -392,6 +404,63 @@ export function ARView() {
                     <button className="permission-btn" onClick={requestPermission}>
                         🧭 センサーを有効化
                     </button>
+                )}
+
+                {/* キャリブレーションボタン */}
+                {!showCalibration && (
+                    <button
+                        className="permission-btn"
+                        style={{ position: 'absolute', bottom: '100px', right: '16px', left: 'auto', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '10px 16px', fontSize: '14px' }}
+                        onClick={() => setShowCalibration(true)}
+                    >
+                        📏 高さ調整
+                    </button>
+                )}
+
+                {/* キャリブレーションUI */}
+                {showCalibration && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '100px',
+                        left: '16px',
+                        right: '16px',
+                        background: 'rgba(0, 0, 0, 0.85)',
+                        padding: '16px',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        zIndex: 200
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' }}>
+                            <span style={{ fontWeight: 'bold' }}>高さ調整 (キャリブレーション)</span>
+                            <button onClick={() => setShowCalibration(false)} style={{ background: 'none', color: '#999', fontSize: '20px' }}>✕</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ color: '#ccc', fontSize: '12px' }}>下げる</span>
+                            <input
+                                type="range"
+                                min="-50"
+                                max="50"
+                                value={calibrationOffset}
+                                onChange={(e) => setCalibrationOffset(Number(e.target.value))}
+                                style={{ flex: 1 }}
+                            />
+                            <span style={{ color: '#ccc', fontSize: '12px' }}>上げる</span>
+                        </div>
+                        <div style={{ textAlign: 'center', color: 'white', fontSize: '14px' }}>
+                            補正値: <strong>{calibrationOffset > 0 ? '+' : ''}{calibrationOffset}m</strong>
+                            <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                                ※ オブジェクトが浮いて見える場合はプラス(+)方向に上げてください
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setCalibrationOffset(0)}
+                            style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#ccc', borderRadius: '8px', fontSize: '12px' }}
+                        >
+                            リセット (0m)
+                        </button>
+                    </div>
                 )}
 
                 {/* オブジェクトなし */}

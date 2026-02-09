@@ -274,6 +274,26 @@ export function Map3DView() {
         }
     };
 
+    // グローバルエラーハンドリング (iOSでのデバッグ用)
+    const [globalError, setGlobalError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const handleError = (event: ErrorEvent) => {
+            setGlobalError(`Global Error: ${event.message}`);
+        };
+        const handleRejection = (event: PromiseRejectionEvent) => {
+            setGlobalError(`Promise Error: ${event.reason}`);
+        };
+
+        window.addEventListener('error', handleError);
+        window.addEventListener('unhandledrejection', handleRejection);
+
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleRejection);
+        };
+    }, []);
+
     // ErrorBoundaryがキャッチした場合のUI
     const FallbackUI = (
         <div className="map-container cesium-container">
@@ -283,11 +303,15 @@ export function Map3DView() {
             <div className="webgl-error">
                 <div className="error-content">
                     <h3>3Dマップを表示できません</h3>
-                    <p>お使いのブラウザがWebGLに対応していないため、3Dマップを表示できません。</p>
-                    <p>Chrome / Edge / Firefox の最新版でお試しください。</p>
+                    <p>エラーが発生しました: {globalError || '不明なエラー'}</p>
                     <button className="fallback-2d-btn" onClick={() => window.location.reload()}>
                         再読み込み
                     </button>
+                    {globalError && (
+                        <div style={{ marginTop: '10px', fontSize: '10px', color: 'red', textAlign: 'left', background: '#333', padding: '5px' }}>
+                            {globalError}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -350,9 +374,9 @@ export function Map3DView() {
                         showRenderLoopErrors={false}
                         contextOptions={{
                             webgl: {
-                                alpha: true,
-                                antialias: true,
-                                preserveDrawingBuffer: true,
+                                alpha: false, // 透明背景を無効化（iOSでのクラッシュ防止）
+                                antialias: false, // アンチエイリアス無効化（メモリ節約）
+                                powerPreference: "high-performance",
                                 failIfMajorPerformanceCaveat: false,
                             },
                         }}
@@ -546,7 +570,6 @@ export function Map3DView() {
                 onClose={() => setShowObjectList(false)}
             />
 
-            {/* 場所検索パネル */}
             <LocationSearchPanel
                 isOpen={showLocationSearch}
                 onSelectLocation={(pos, name) => {
@@ -556,6 +579,25 @@ export function Map3DView() {
                 }}
                 onClose={() => setShowLocationSearch(false)}
             />
+
+            {/* 重大エラーオーバーレイ */}
+            {globalError && (
+                <div style={{
+                    position: 'absolute',
+                    top: '20%',
+                    left: '10%',
+                    right: '10%',
+                    background: 'rgba(255, 0, 0, 0.9)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    zIndex: 9999,
+                    pointerEvents: 'none'
+                }}>
+                    <h3>⚠️ システムエラー</h3>
+                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{globalError}</p>
+                </div>
+            )}
         </div>
     );
 }

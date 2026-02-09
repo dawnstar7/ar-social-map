@@ -69,12 +69,6 @@ export function ProfileView() {
         }
     }, [userId]);
 
-    const clearLocationCache = useCallback(() => {
-        localStorage.removeItem('cesium_widget_failed_v2');
-        localStorage.removeItem('cesium_failed');
-        alert('3Dマップ設定をリセットしました。次回マップを開くとき、3Dマップが再試行されます。');
-    }, []);
-
     // ローディング中でもプロフィール未設定時は最低限のUI表示
     if (!profile && isLoading) {
         return (
@@ -269,14 +263,6 @@ export function ProfileView() {
                 {showSettings && (
                     <div className="profile-section profile-settings">
                         <h3 className="profile-section-title">設定</h3>
-
-                        <button className="profile-setting-item" onClick={clearLocationCache}>
-                            <span className="profile-setting-icon">{'\uD83D\uDDFA\uFE0F'}</span>
-                            <div className="profile-setting-info">
-                                <span className="profile-setting-name">3Dマップをリセット</span>
-                                <span className="profile-setting-desc">次回マップを開くとき3Dマップを再試行します</span>
-                            </div>
-                        </button>
 
                         <button className="profile-setting-item" onClick={() => {
                             localStorage.clear();

@@ -37,11 +37,7 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 // 配置モード
 type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo';
 
-interface Map3DViewProps {
-    onFallbackTo2D?: () => void;
-}
-
-export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
+export function Map3DView() {
     const viewerRef = useRef<any>(null);
     const [currentPosition, setCurrentPosition] = useState<GeoPosition | null>(null);
     const [isLocating, setIsLocating] = useState(false);
@@ -277,13 +273,12 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
             </div>
             <div className="webgl-error">
                 <div className="error-content">
-                    <h3>3Dマップの初期化に失敗しました</h3>
-                    <p>お使いのブラウザでは3Dマップが表示できない可能性があります。</p>
-                    {onFallbackTo2D && (
-                        <button className="fallback-2d-btn" onClick={onFallbackTo2D}>
-                            🗺️ 2Dマップに切り替える
-                        </button>
-                    )}
+                    <h3>3Dマップを表示できません</h3>
+                    <p>お使いのブラウザがWebGLに対応していないため、3Dマップを表示できません。</p>
+                    <p>Chrome / Edge / Firefox の最新版でお試しください。</p>
+                    <button className="fallback-2d-btn" onClick={() => window.location.reload()}>
+                        再読み込み
+                    </button>
                 </div>
             </div>
         </div>
@@ -324,23 +319,12 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
                     <button className="icon-btn" onClick={locateMe} disabled={isLocating} title="現在地">
                         {isLocating ? '⏳' : '📍'}
                     </button>
-                    {onFallbackTo2D && (
-                        <button className="icon-btn" onClick={onFallbackTo2D} title="2Dマップに切り替え">
-                            🗺️
-                        </button>
-                    )}
                 </div>
             </div>
 
             {/* Cesiumビューア (ErrorBoundaryでラップ) */}
             <div className="cesium-viewer-wrapper">
-                <ErrorBoundary fallback={FallbackUI} onError={() => {
-                    localStorage.setItem('cesium_widget_failed_v2', 'true');
-                    // 自動的に2Dマップへフォールバック
-                    if (onFallbackTo2D) {
-                        setTimeout(onFallbackTo2D, 100);
-                    }
-                }}>
+                <ErrorBoundary fallback={FallbackUI}>
                     <Viewer
                         ref={viewerRef}
                         full

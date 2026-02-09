@@ -56,8 +56,16 @@ function ARObject({
         const metersPerDegreeLon = 111320 * Math.cos(devicePosition.latitude * Math.PI / 180);
         const z = -latDiff * metersPerDegreeLat;
         const x = lonDiff * metersPerDegreeLon;
+
+        // 高度計算（相対高度）
         const objectAlt = pos.altitude || 0;
-        const y = Math.max(objectAlt - 1.6, 2);
+        const deviceAlt = devicePosition.altitude || 0;
+
+        // オブジェクトの高さ - デバイスの高さ
+        // デバイス位置（カメラ位置）を0（y=0）とするので、地面にある物体は y = -1.6 (身長分下) くらいになるべき
+        // ここでは単純に相対高度差を使用
+        const y = objectAlt - deviceAlt;
+
         return new THREE.Vector3(x, y, z);
     }, [devicePosition]);
 

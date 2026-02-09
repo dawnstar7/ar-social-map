@@ -430,22 +430,27 @@ export function Map3DView() {
                                         obj.position.latitude,
                                         displayAltitude
                                     )}
-                                    billboard={{
-                                        image: '/pin.png',
-                                        width: isOwn ? 40 : 32,
-                                        height: isOwn ? 40 : 32,
-                                        verticalOrigin: VerticalOrigin.BOTTOM,
-                                        color: Color.fromCssColorString(obj.color), // Tint with user color
+                                    // 3D球体（オーブ）として表示
+                                    ellipsoid={{
+                                        radii: new Cartesian3(5.0, 5.0, 5.0), // 半径5mの真球
+                                        material: Color.fromCssColorString(obj.color).withAlpha(0.9),
+                                        outline: true,
+                                        outlineColor: Color.WHITE,
+                                        outlineWidth: 2,
                                     }}
                                     label={{
                                         text: `${obj.name}${!isOwn ? ' 👤' : ''}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
-                                        font: '12px sans-serif',
-                                        fillColor: isOwn ? Color.WHITE : Color.CYAN,
+                                        font: '14px sans-serif',
+                                        fillColor: Color.WHITE,
                                         outlineColor: Color.BLACK,
-                                        outlineWidth: 2,
-                                        pixelOffset: new Cartesian2(0, -45),
-                                        style: 2,
+                                        outlineWidth: 4,
+                                        style: 2, // FILL_AND_OUTLINE
+                                        pixelOffset: new Cartesian2(0, -60), // 球体の上に出るように調整
                                         verticalOrigin: VerticalOrigin.BOTTOM,
+                                        distanceDisplayCondition: {
+                                            near: 0,
+                                            far: 10000,
+                                        } as any // 型定義回避
                                     }}
                                     onClick={() => {
                                         if (isOwn) {

@@ -102,12 +102,19 @@ function ARObject({
             position={isFlyingObject ? [0, 0, 0] : initialPosition}
         >
             <mesh>
-                <sphereGeometry args={[size, 16, 16]} />
-                <meshBasicMaterial color={object.color} transparent opacity={0.9} />
+                <sphereGeometry args={[size, 32, 32]} />
+                <meshStandardMaterial
+                    color={object.color}
+                    transparent
+                    opacity={0.9}
+                    roughness={0.2}
+                    metalness={0.3}
+                />
             </mesh>
+            {/* インナーグロー的な効果（オプション） */}
             <mesh>
-                <sphereGeometry args={[size * 1.1, 16, 16]} />
-                <meshBasicMaterial color="white" transparent opacity={0.3} side={THREE.BackSide} />
+                <sphereGeometry args={[size * 0.9, 16, 16]} />
+                <meshBasicMaterial color="white" transparent opacity={0.1} />
             </mesh>
             {isFlyingObject && (
                 <>
@@ -355,6 +362,9 @@ export function ARView() {
                     camera={{ fov: 70, near: 0.1, far: 2000, position: [0, 0, 0] }}
                     gl={{ alpha: true, antialias: true }}
                 >
+                    <ambientLight intensity={0.6} />
+                    <pointLight position={[10, 10, 10]} intensity={1.0} />
+                    <pointLight position={[-10, 10, -10]} intensity={0.5} />
                     <ARScene
                         objects={allObjects}
                         devicePosition={devicePosition}

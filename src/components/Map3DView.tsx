@@ -20,6 +20,7 @@ import {
     Cesium3DTileset,
     Cartographic,
     Math as CesiumMath,
+    VerticalOrigin,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { useObjectStore, creatureNames, type FlyingCreature } from '../store/objectStore';
@@ -288,16 +289,39 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
         </div>
     );
 
+    // カメラリセット
+    const resetCamera = useCallback(() => {
+        const viewer = viewerRef.current?.cesiumElement;
+        if (!viewer || !currentPosition) return;
+
+        viewer.camera.flyTo({
+            destination: Cartesian3.fromDegrees(
+                currentPosition.longitude,
+                currentPosition.latitude,
+                200 // Altitude
+            ),
+            orientation: {
+                heading: 0,
+                pitch: CesiumMath.toRadians(-60),
+                roll: 0,
+            },
+            duration: 1.5,
+        });
+    }, [currentPosition]);
+
     return (
         <div className="map-container cesium-container">
             {/* ヘッダー */}
             <div className="map-header">
                 <h2>🌍 3Dマップ</h2>
                 <div className="header-buttons">
-                    <button className="icon-btn" onClick={() => setShowLocationSearch(true)}>
+                    <button className="icon-btn" onClick={() => setShowLocationSearch(true)} title="検索">
                         🔍
                     </button>
-                    <button className="icon-btn" onClick={locateMe} disabled={isLocating}>
+                    <button className="icon-btn" onClick={resetCamera} disabled={!currentPosition} title="カメラリセット">
+                        🔄
+                    </button>
+                    <button className="icon-btn" onClick={locateMe} disabled={isLocating} title="現在地">
                         {isLocating ? '⏳' : '📍'}
                     </button>
                     {onFallbackTo2D && (
@@ -355,11 +379,12 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
                                         obj.position.latitude,
                                         displayAltitude
                                     )}
-                                    point={{
-                                        pixelSize: isOwn ? 16 : 12,
-                                        color: Color.fromCssColorString(obj.color),
-                                        outlineColor: isOwn ? Color.WHITE : Color.CYAN,
-                                        outlineWidth: 2,
+                                    billboard={{
+                                        image: '/pin.png',
+                                        width: isOwn ? 40 : 32,
+                                        height: isOwn ? 40 : 32,
+                                        verticalOrigin: VerticalOrigin.BOTTOM,
+                                        color: Color.fromCssColorString(obj.color), // Tint with user color
                                     }}
                                     label={{
                                         text: `${obj.name}${!isOwn ? ' 👤' : ''}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
@@ -367,8 +392,9 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
                                         fillColor: isOwn ? Color.WHITE : Color.CYAN,
                                         outlineColor: Color.BLACK,
                                         outlineWidth: 2,
-                                        pixelOffset: new Cartesian2(0, -30),
+                                        pixelOffset: new Cartesian2(0, -45),
                                         style: 2,
+                                        verticalOrigin: VerticalOrigin.BOTTOM,
                                     }}
                                     onClick={() => {
                                         if (isOwn) {
@@ -387,15 +413,19 @@ export function Map3DView({ onFallbackTo2D }: Map3DViewProps) {
                             const pos = flyingPositions.get(obj.id) || obj.position;
                             const flyAlt = Math.max(pos.altitude || 0, 20);
                             const isOwn = obj.ownerId === userId || !obj.ownerId;
+                            const iconUrl = obj.creature === 'dragon' ? '/dragon.png' :
+                                obj.creature === 'bird' ? '/bird.png' :
+                                    obj.creature === 'ufo' ? '/ufo.png' : '/dragon.png';
+
                             return (
                                 <Entity
                                     key={obj.id}
                                     position={Cartesian3.fromDegrees(pos.longitude, pos.latitude, flyAlt)}
-                                    point={{
-                                        pixelSize: 20,
-                                        color: Color.fromCssColorString(obj.color),
-                                        outlineColor: isOwn ? Color.WHITE : Color.CYAN,
-                                        outlineWidth: 3,
+                                    billboard={{
+                                        image: iconUrl,
+                                        width: 48,
+                                        height: 48,
+                                        verticalOrigin: VerticalOrigin.CENTER,
                                     }}
                                     label={{
                                         text: `${obj.name}${!isOwn ? ' 👤' : ''}`,

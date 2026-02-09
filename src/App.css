@@ -3,20 +3,40 @@
    ====================================== */
 
 :root {
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
+  /* Modern Palette */
+  --primary: #8b5cf6;
+  /* Violet */
+  --primary-dark: #7c3aed;
+  --secondary: #06b6d4;
+  /* Cyan */
   --accent: #f43f5e;
+  /* Rose */
+
+  /* Backgrounds */
   --background: #0f172a;
   --surface: #1e293b;
   --surface-light: #334155;
+
+  /* Text */
   --text: #f8fafc;
   --text-muted: #94a3b8;
-  --success: #22c55e;
+
+  /* State */
+  --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --glass-bg: rgba(15, 23, 42, 0.85);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(15, 23, 42, 0.7);
+  --glass-bg-strong: rgba(15, 23, 42, 0.9);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --nav-bar-height: 60px;
+  --glass-border-light: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  /* Layout */
+  --nav-bar-height: 70px;
+  /* Slightly taller for better touch target */
+  --safe-area-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 * {
@@ -1051,8 +1071,16 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .bottom-nav-icon {
-  font-size: 22px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: transform 0.2s ease;
+}
+
+.bottom-nav-tab.active .bottom-nav-icon {
+  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5));
+  transform: translateY(-2px);
 }
 
 .bottom-nav-label {

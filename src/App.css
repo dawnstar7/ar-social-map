@@ -657,64 +657,85 @@ input[type="range"]::-webkit-slider-thumb {
 /* ======================================
    Altitude Control
    ====================================== */
+/* ======================================
+   Altitude Control (Collapsible)
+   ====================================== */
 .altitude-control {
   position: absolute;
-  bottom: calc(180px + var(--nav-bar-height));
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 40px);
-  max-width: 320px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 10px 16px;
-  z-index: 30;
+  bottom: calc(120px + var(--nav-bar-height));
+  /* Place button further up */
+  left: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.altitude-toggle-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.altitude-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.altitude-panel {
+  margin-bottom: 10px;
+  /* Show panel above button */
+  background: rgba(20, 20, 30, 0.9);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+  order: -1;
+  /* Visualize above button */
 }
 
 .altitude-label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.altitude-label strong {
-  color: var(--text);
-  font-size: 15px;
-}
-
-.altitude-detail {
   font-size: 11px;
-  color: var(--text-muted);
-  margin-left: 6px;
+  color: #ccc;
+  display: flex;
+  justify-content: space-between;
 }
 
 .altitude-slider {
   width: 100%;
-  margin-bottom: 8px;
+  accent-color: var(--primary);
+  margin: 0;
 }
 
 .altitude-presets {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
 }
 
 .altitude-presets button {
-  flex: 1;
-  padding: 5px 0;
-  background: var(--surface);
-  color: var(--text-muted);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  font-size: 10px;
+  padding: 4px;
+  border-radius: 4px;
+  color: #aaa;
 }
 
 .altitude-presets button.active {
   background: var(--primary);
   color: white;
-  border-color: var(--primary);
 }
 
 .place-btn {

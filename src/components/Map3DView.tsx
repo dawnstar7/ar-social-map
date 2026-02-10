@@ -54,6 +54,7 @@ export function Map3DView() {
     const [showObjectList, setShowObjectList] = useState(false);
     const [showLocationSearch, setShowLocationSearch] = useState(false);
     const [showUGCPanel, setShowUGCPanel] = useState(false);
+    const [showAltitudeControl, setShowAltitudeControl] = useState(false);
     const [placeAltitude, setPlaceAltitude] = useState(0);
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
@@ -692,33 +693,41 @@ export function Map3DView() {
                 </div>
             )}
 
-            {/* 高度スライダー */}
-            <div className="altitude-control">
-                <label className="altitude-label">
-                    地面から: <strong>+{placeAltitude}m</strong>
-                    {crosshairPosition && (
-                        <span className="altitude-detail">
-                            （海抜{((crosshairPosition.altitude || 0) + placeAltitude).toFixed(0)}m）
-                        </span>
-                    )}
-                </label>
-                <input
-                    type="range"
-                    min="0"
-                    max="500"
-                    step="5"
-                    value={placeAltitude}
-                    onChange={(e) => setPlaceAltitude(Number(e.target.value))}
-                    className="altitude-slider"
-                />
-                <div className="altitude-presets">
-                    <button onClick={() => setPlaceAltitude(0)} className={placeAltitude === 0 ? 'active' : ''}>地面</button>
-                    <button onClick={() => setPlaceAltitude(10)} className={placeAltitude === 10 ? 'active' : ''}>10m</button>
-                    <button onClick={() => setPlaceAltitude(50)} className={placeAltitude === 50 ? 'active' : ''}>50m</button>
-                    <button onClick={() => setPlaceAltitude(100)} className={placeAltitude === 100 ? 'active' : ''}>100m</button>
-                    <button onClick={() => setPlaceAltitude(200)} className={placeAltitude === 200 ? 'active' : ''}>200m</button>
-                    <button onClick={() => setPlaceAltitude(500)} className={placeAltitude === 500 ? 'active' : ''}>500m</button>
-                </div>
+            {/* 高度コントロール（トグル式） */}
+            <div className={`altitude-control ${showAltitudeControl ? 'visible' : ''}`}>
+                <button
+                    className="altitude-toggle-btn"
+                    onClick={() => setShowAltitudeControl(!showAltitudeControl)}
+                >
+                    📏 高度: +{placeAltitude}m {showAltitudeControl ? '▼' : '▲'}
+                </button>
+
+                {showAltitudeControl && (
+                    <div className="altitude-panel">
+                        <label className="altitude-label">
+                            {crosshairPosition && (
+                                <span className="altitude-detail">
+                                    （海抜{((crosshairPosition.altitude || 0) + placeAltitude).toFixed(0)}m）
+                                </span>
+                            )}
+                        </label>
+                        <input
+                            type="range"
+                            min="0"
+                            max="500"
+                            step="5"
+                            value={placeAltitude}
+                            onChange={(e) => setPlaceAltitude(Number(e.target.value))}
+                            className="altitude-slider"
+                        />
+                        <div className="altitude-presets">
+                            <button onClick={() => setPlaceAltitude(0)} className={placeAltitude === 0 ? 'active' : ''}>地面</button>
+                            <button onClick={() => setPlaceAltitude(10)} className={placeAltitude === 10 ? 'active' : ''}>10m</button>
+                            <button onClick={() => setPlaceAltitude(50)} className={placeAltitude === 50 ? 'active' : ''}>50m</button>
+                            <button onClick={() => setPlaceAltitude(100)} className={placeAltitude === 100 ? 'active' : ''}>100m</button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* 配置ボタン */}

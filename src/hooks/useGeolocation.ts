@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GeoPosition } from '../utils/coordinates';
 
 interface GeolocationState {
@@ -30,13 +30,41 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
         isLoading: true,
     });
 
+    // スムージング用のRef（前回の値を保持）
+    const lastPosRef = useRef<GeoPosition | null>(null);
+
+    // LPF係数 (0.0: 変化なし 〜 1.0: そのまま適用)
+    // 0.15くらいが遅延と滑らかさのバランスが良い
+    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const ALPHA = IS_IOS ? 0.2 : 0.15;
+
     const handleSuccess = useCallback((pos: GeolocationPosition) => {
+        const rawLatitude = pos.coords.latitude;
+        const rawLongitude = pos.coords.longitude;
+        const rawAltitude = pos.coords.altitude ?? 0;
+
+        let newLat = rawLatitude;
+        let newLon = rawLongitude;
+        let newAlt = rawAltitude;
+
+        if (lastPosRef.current) {
+            // 前回の値があればスムージング
+            newLat = lastPosRef.current.latitude + (rawLatitude - lastPosRef.current.latitude) * ALPHA;
+            newLon = lastPosRef.current.longitude + (rawLongitude - lastPosRef.current.longitude) * ALPHA;
+            // 高度はさらにブレやすいので強めにフィルタ
+            newAlt = (lastPosRef.current.altitude || 0) + (rawAltitude - (lastPosRef.current.altitude || 0)) * (ALPHA * 0.5);
+        }
+
+        const smoothedPos = {
+            latitude: newLat,
+            longitude: newLon,
+            altitude: newAlt,
+        };
+
+        lastPosRef.current = smoothedPos;
+
         setState({
-            position: {
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                altitude: pos.coords.altitude ?? 0,
-            },
+            position: smoothedPos,
             accuracy: pos.coords.accuracy,
             error: null,
             isLoading: false,

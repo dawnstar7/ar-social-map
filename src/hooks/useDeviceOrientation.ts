@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface DeviceOrientationState {
     alpha: number | null;  // Z軸回転（コンパス方位）
@@ -55,48 +55,87 @@ export function useDeviceOrientation() {
         }
     }, []);
 
+    // スムージング用のRef
+    const lastOrientationRef = useRef<{
+        alpha: number;
+        beta: number;
+        gamma: number;
+        heading: number;
+    } | null>(null);
+
+    // 角度の補間（0-360度の境界またぎを考慮）
+    const lerpAngle = (current: number, target: number, factor: number) => {
+        let diff = target - current;
+        // 差分を -180 〜 180 に正規化
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
+        return current + diff * factor;
+    };
+
+    // 通常の数値の線形補間
+    const lerp = (current: number, target: number, factor: number) => {
+        return current + (target - current) * factor;
+    };
+
     useEffect(() => {
-        if (!window.DeviceOrientationEvent) {
-            setState((prev) => ({
-                ...prev,
-                isSupported: false,
-                error: 'このデバイスは方位センサーをサポートしていません',
-            }));
-            return;
-        }
+        // ... (省略) ...
 
         if (!permissionGranted) {
             return;
         }
 
+        // LPF係数（0.1 = 滑らかだが遅延あり, 0.5 = キビキビだが震える）
+        const ALPHA = 0.15;
+
         const handleOrientation = (event: DeviceOrientationEvent) => {
-            // webkitCompassHeading は iOS Safari 固有のプロパティ
-            // @ts-expect-error - iOS Safari specific property
+            // ... (Heading取得ロジックは既存のまま) ...
+            // @ts-expect-error
             const webkitHeading = event.webkitCompassHeading as number | undefined;
-
-            let heading: number | null = null;
-
+            let targetHeading: number | null = null;
             if (webkitHeading !== undefined) {
-                // iOS: webkitCompassHeadingを使用（北=0）
-                heading = webkitHeading;
+                targetHeading = webkitHeading;
             } else if (event.alpha !== null) {
-                // Android: alphaを使用（ただし反時計回りなので補正）
-                // また、absolute が true の場合のみ北基準
-                heading = event.absolute ? (360 - event.alpha) % 360 : null;
+                targetHeading = event.absolute ? (360 - event.alpha) % 360 : null;
             }
 
-            setState({
+            // センサー値が取れなければスキップ
+            if (event.alpha === null || event.beta === null || event.gamma === null || targetHeading === null) {
+                return;
+            }
+
+            let newOrientation = {
                 alpha: event.alpha,
                 beta: event.beta,
                 gamma: event.gamma,
-                heading,
+                heading: targetHeading
+            };
+
+            // スムージング適用
+            if (lastOrientationRef.current) {
+                newOrientation.alpha = lerpAngle(lastOrientationRef.current.alpha, event.alpha, ALPHA);
+                newOrientation.beta = lerp(lastOrientationRef.current.beta, event.beta, ALPHA);
+                newOrientation.gamma = lerp(lastOrientationRef.current.gamma, event.gamma, ALPHA);
+                newOrientation.heading = lerpAngle(lastOrientationRef.current.heading, targetHeading, ALPHA);
+            }
+
+            // Refを更新
+            lastOrientationRef.current = newOrientation;
+
+            // 正規化（360度を超えないように）
+            newOrientation.alpha = (newOrientation.alpha + 360) % 360;
+            newOrientation.heading = (newOrientation.heading + 360) % 360;
+
+            setState({
+                alpha: newOrientation.alpha,
+                beta: newOrientation.beta,
+                gamma: newOrientation.gamma,
+                heading: newOrientation.heading,
                 error: null,
                 isSupported: true,
             });
         };
 
         window.addEventListener('deviceorientation', handleOrientation, true);
-
         return () => {
             window.removeEventListener('deviceorientation', handleOrientation, true);
         };

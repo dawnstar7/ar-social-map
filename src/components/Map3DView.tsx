@@ -34,8 +34,10 @@ import type { GeoPosition } from '../utils/coordinates';
 const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_TOKEN || '';
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
+import { UGCCreatorPanel } from './UGCCreatorPanel';
+
 // 配置モード
-type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo';
+type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo' | 'ugc';
 
 export function Map3DView() {
     const viewerRef = useRef<any>(null);
@@ -51,12 +53,13 @@ export function Map3DView() {
     const [showModeSelect, setShowModeSelect] = useState(false);
     const [showObjectList, setShowObjectList] = useState(false);
     const [showLocationSearch, setShowLocationSearch] = useState(false);
+    const [showUGCPanel, setShowUGCPanel] = useState(false);
     const [placeAltitude, setPlaceAltitude] = useState(0);
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, publicObjects, addObject, addFlyingObject, removeObject, clearAll, userId } = useObjectStore();
+    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, removeObject, clearAll, userId } = useObjectStore();
 
     const VISIBLE_RADIUS = 2000;
 
@@ -262,6 +265,9 @@ export function Map3DView() {
         if (placeMode === 'static') {
             addObject(positionWithAltitude, `📍 ${userObjects.length + 1}`, '#ff4444');
             setStatusMessage(`ピン配置完了！（地面+${placeAltitude}m / 海抜${positionWithAltitude.altitude?.toFixed(0)}m）`);
+        } else if (placeMode === 'ugc') {
+            setShowUGCPanel(true);
+            // UGCパネルが開くのでここではセットしない
         } else {
             const creature = placeMode as FlyingCreature;
             const actualAlt = groundAltitude + placeAltitude;
@@ -285,6 +291,7 @@ export function Map3DView() {
             case 'dragon': return '🐉 ドラゴン';
             case 'bird': return '🦅 鳥';
             case 'ufo': return '🛸 UFO';
+            case 'ugc': return '🎨 クリエイト';
         }
     };
 
@@ -418,17 +425,136 @@ export function Map3DView() {
                             />
                         )}
 
-                        {/* 静止オブジェクト */}
+                        {/* 静止オブジェクト & UGC */}
                         {allObjects.filter(obj => obj.objectType !== 'flying').map((obj) => {
-                            const displayAltitude = (obj.position.altitude || 0) + 2;
+                            const displayAltitude = (obj.position.altitude || 0);
                             const isOwn = obj.ownerId === userId || !obj.ownerId;
+
+                            // UGC: TEXT handling
+                            if (obj.objectType === 'ugc' && obj.ugcType === 'TEXT' && obj.ugcData) {
+                                return (
+                                    <Entity
+                                        key={obj.id}
+                                        position={Cartesian3.fromDegrees(
+                                            obj.position.longitude,
+                                            obj.position.latitude,
+                                            displayAltitude + 5 // 少し浮かせる
+                                        )}
+                                        label={{
+                                            text: obj.ugcData.text || 'Text',
+                                            font: `${obj.ugcData.fontSize || 24}px sans-serif`,
+                                            fillColor: Color.fromCssColorString(obj.ugcData.fontColor || '#ffffff'),
+                                            outlineColor: Color.BLACK,
+                                            outlineWidth: 4,
+                                            style: 2, // FILL_AND_OUTLINE
+                                            verticalOrigin: VerticalOrigin.CENTER,
+                                            distanceDisplayCondition: { near: 0, far: 5000 } as any,
+                                            scale: obj.ugcData.scale || 1.0,
+                                        }}
+                                        onClick={() => {
+                                            if (isOwn) {
+                                                removeObject(obj.id);
+                                                setStatusMessage('削除');
+                                            }
+                                        }}
+                                    />
+                                );
+                            }
+
+                            // UGC: MEDIA (Photo) handling
+                            if (obj.objectType === 'ugc' && obj.ugcType === 'MEDIA' && obj.ugcData) {
+                                return (
+                                    <Entity
+                                        key={obj.id}
+                                        position={Cartesian3.fromDegrees(
+                                            obj.position.longitude,
+                                            obj.position.latitude,
+                                            displayAltitude + 5
+                                        )}
+                                        billboard={{
+                                            image: obj.ugcData.url || '/pin.png', // URLがあればそれを表示
+                                            width: 64 * (obj.ugcData.scale || 1),
+                                            height: 64 * (obj.ugcData.scale || 1),
+                                            verticalOrigin: VerticalOrigin.BOTTOM,
+                                            distanceDisplayCondition: { near: 0, far: 5000 } as any,
+                                        }}
+                                        label={{
+                                            text: '📷 Photo',
+                                            font: '12px sans-serif',
+                                            style: 2,
+                                            pixelOffset: new Cartesian2(0, -10),
+                                            verticalOrigin: VerticalOrigin.TOP,
+                                            distanceDisplayCondition: { near: 0, far: 1000 } as any,
+                                        }}
+                                        onClick={() => isOwn && removeObject(obj.id)}
+                                    />
+                                );
+                            }
+
+                            // UGC: MODEL (GLB) handling
+                            if (obj.objectType === 'ugc' && obj.ugcType === 'MODEL' && obj.ugcData) {
+                                return (
+                                    <Entity
+                                        key={obj.id}
+                                        position={Cartesian3.fromDegrees(
+                                            obj.position.longitude,
+                                            obj.position.latitude,
+                                            displayAltitude
+                                        )}
+                                        model={{
+                                            uri: obj.ugcData.modelUrl || '', // GLB URL
+                                            scale: 10.0 * (obj.ugcData.scale || 1), // 地図上では大きく表示しないと見えない
+                                            minimumPixelSize: 64,
+                                        }}
+                                        label={{
+                                            text: '📦 Model',
+                                            font: '12px sans-serif',
+                                            pixelOffset: new Cartesian2(0, -50),
+                                            distanceDisplayCondition: { near: 0, far: 1000 } as any,
+                                        }}
+                                        onClick={() => isOwn && removeObject(obj.id)}
+                                    />
+                                );
+                            }
+
+                            // UGC: AUDIO handling
+                            if (obj.objectType === 'ugc' && obj.ugcType === 'AUDIO') {
+                                return (
+                                    <Entity
+                                        key={obj.id}
+                                        position={Cartesian3.fromDegrees(
+                                            obj.position.longitude,
+                                            obj.position.latitude,
+                                            displayAltitude + 2
+                                        )}
+                                        billboard={{
+                                            image: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDBmZjAwIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAxYTMgMyAwIDAgMCAzIDN2OGEzIDMgMCAwIDAtMyAzIDMgMyAwIDAgMC0zLTNWM2EzIDMgMCAwIDAgMy0zek0xOSAxMHYyYTcgNyAwIDAgMS0xNCAwdjEwaDIiLz48L3N2Zz4=', // Simple Mic/Speaker Icon (SVG base64 ideally, using text for now or simple circle)
+                                            // 簡易的な音楽アイコンの代わりにEmojiや色付き丸を使う
+                                            color: Color.LIME,
+                                            width: 32,
+                                            height: 32,
+                                        }}
+                                        label={{
+                                            text: '🔊 Audio Spot',
+                                            font: '14px sans-serif',
+                                            fillColor: Color.LIME,
+                                            outlineColor: Color.BLACK,
+                                            style: 2,
+                                            pixelOffset: new Cartesian2(0, -20),
+                                        }}
+                                        onClick={() => isOwn && removeObject(obj.id)}
+                                    />
+                                );
+                            }
+
+                            // Legacy Static Objects (Spheres)
                             return (
                                 <Entity
                                     key={obj.id}
                                     position={Cartesian3.fromDegrees(
                                         obj.position.longitude,
                                         obj.position.latitude,
-                                        displayAltitude
+                                        displayAltitude + 2
                                     )}
                                     // 3D球体（オーブ）として表示
                                     ellipsoid={{
@@ -534,6 +660,9 @@ export function Map3DView() {
                     <button className={placeMode === 'ufo' ? 'active' : ''} onClick={() => { setPlaceMode('ufo'); setShowModeSelect(false); }}>
                         🛸 UFO（飛行）
                     </button>
+                    <button className={placeMode === 'ugc' ? 'active' : ''} onClick={() => { setPlaceMode('ugc'); setShowModeSelect(false); }}>
+                        🎨 クリエイト（自由）
+                    </button>
                 </div>
             )}
 
@@ -602,6 +731,23 @@ export function Map3DView() {
                     setStatusMessage(`${name}を表示`);
                 }}
                 onClose={() => setShowLocationSearch(false)}
+            />
+
+            <UGCCreatorPanel
+                isOpen={showUGCPanel}
+                onClose={() => setShowUGCPanel(false)}
+                onCreate={(type, props) => {
+                    if (crosshairPosition) {
+                        const groundAltitude = crosshairPosition.altitude || 0;
+                        const positionWithAltitude: GeoPosition = {
+                            ...crosshairPosition,
+                            altitude: groundAltitude + placeAltitude,
+                        };
+                        addUGCObject(positionWithAltitude, type, props);
+                        setStatusMessage('クリエイティブオブジェクトを配置しました！');
+                        setShowUGCPanel(false);
+                    }
+                }}
             />
 
             {/* 重大エラーオーバーレイ */}

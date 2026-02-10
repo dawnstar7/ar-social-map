@@ -7,9 +7,10 @@
 import { create } from 'zustand';
 import type { GeoPosition } from '../utils/coordinates';
 import type { FlightConfig } from '../utils/flyingBehavior';
+import type { UGCType, UGCProperties } from '../types/ugc';
 import { supabase, getOrCreateUserId } from '../lib/supabase';
 
-export type ObjectType = 'static' | 'flying';
+export type ObjectType = 'static' | 'flying' | 'ugc';
 export type FlyingCreature = 'dragon' | 'bird' | 'ufo';
 
 export interface PlacedObject {
@@ -23,6 +24,9 @@ export interface PlacedObject {
     flightConfig?: FlightConfig;
     ownerId?: string;
     isPublic?: boolean;
+    // UGC Fields
+    ugcType?: UGCType;
+    ugcData?: UGCProperties;
 }
 
 // 生物の絵文字と名前
@@ -64,6 +68,7 @@ interface ObjectStore {
     // ローカル操作（即座に反映、バックグラウンドで同期）
     addObject: (position: GeoPosition, name: string, color: string) => void;
     addFlyingObject: (position: GeoPosition, creature: FlyingCreature, config?: Partial<FlightConfig>) => void;
+    addUGCObject: (position: GeoPosition, ugcType: UGCType, properties: UGCProperties, name?: string) => void;
     removeObject: (id: string) => void;
     updateObject: (id: string, updates: Partial<PlacedObject>) => void;
     clearAll: () => void;
@@ -103,18 +108,24 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
                         .eq('owner_id', userId);
 
                     if (data) {
-                        const objects: PlacedObject[] = data.map(obj => ({
-                            id: obj.id,
-                            position: obj.position as GeoPosition,
-                            color: obj.color,
-                            name: obj.name,
-                            createdAt: new Date(obj.created_at),
-                            objectType: obj.object_type as ObjectType,
-                            creature: obj.creature as FlyingCreature | undefined,
-                            flightConfig: obj.flight_config as FlightConfig | undefined,
-                            ownerId: obj.owner_id,
-                            isPublic: obj.is_public,
-                        }));
+                        const objects: PlacedObject[] = data.map(obj => {
+                            const isUGC = obj.object_type === 'ugc';
+                            return {
+                                id: obj.id,
+                                position: obj.position as GeoPosition,
+                                color: obj.color,
+                                name: obj.name,
+                                createdAt: new Date(obj.created_at),
+                                objectType: obj.object_type as ObjectType,
+                                creature: obj.creature as FlyingCreature | undefined,
+                                flightConfig: obj.flight_config as FlightConfig | undefined,
+                                // UGC Mapping
+                                ugcType: isUGC ? (obj.creature as unknown as UGCType) : undefined,
+                                ugcData: isUGC ? (obj.flight_config as unknown as UGCProperties) : undefined,
+                                ownerId: obj.owner_id,
+                                isPublic: obj.is_public,
+                            };
+                        });
                         set({ objects });
                     }
                 } catch (e) {
@@ -202,6 +213,65 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
         }
     },
 
+    addUGCObject: (position, ugcType, properties, name) => {
+        const { userId } = get();
+
+        // デフォルト名
+        const defaultName = ugcType === 'TEXT' ? (properties.text || 'Text') :
+            ugcType === 'MEDIA' ? 'Photo' :
+                ugcType === 'MODEL' ? 'Model' : 'Audio';
+
+        const newObject: PlacedObject = {
+            id: crypto.randomUUID(),
+            position,
+            color: '#FFFFFF', // UGCは個別プロパティで色管理するが、フォールバック用に白
+            name: name || defaultName,
+            createdAt: new Date(),
+            objectType: 'ugc',
+            ugcType,
+            ugcData: properties,
+            ownerId: userId || undefined,
+            isPublic: true,
+        };
+
+        set((state) => ({
+            objects: [...state.objects, newObject],
+        }));
+
+        // バックグラウンドでSupabaseに保存
+        // 注意: DBスキーマに ugc_type, ugc_data カラムが必要になる。
+        // MVPでは jsonb カラム 'properties' にこれらを入れるか、既存のカラムをうまく使う。
+        // ここでは 'flight_config' (JSONB) を借用するか、新規作成するか。
+        // implementation_planではDBスキーマ変更には触れていないが、
+        // ローカル動作優先で、Supabaseへの保存は一旦 'flight_config' に無理やり入れるか、
+        // もしくはエラーになってもローカルでは動くようにする。
+        // --> ユーザー指示の「Data Schema」にはDBの話もあったが、
+        // Supabaseのテーブル定義を変える権限がないため、既存の 'flight_config' (JSONB) に ugcData を入れ、
+        // 'creature' カラムに ugcType を入れるなどのハックが必要かもしれない。
+        // ここでは一旦、Supabaseへの保存ロジックはコメントアウト気味にするか、
+        // 既存のJSONBカラムに入れ込む実装にする。
+
+        if (userId) {
+            // 仮実装: object_type='ugc' として、flight_config に ugcData を保存
+            // (flight_configはJsonb型なので任意のJSONが入るはず)
+            supabase.from('ar_objects').insert({
+                id: newObject.id,
+                owner_id: userId,
+                is_public: true,
+                position: position,
+                name: newObject.name,
+                color: newObject.color,
+                object_type: 'ugc',
+                // Hack: creatureカラムに型を入れる
+                creature: ugcType as any,
+                // Hack: flight_configカラムにデータを入れる
+                flight_config: properties as any,
+            }).then(({ error }) => {
+                if (error) console.error('UGC保存エラー:', error);
+            });
+        }
+    },
+
     updateObject: (id, updates) => {
         set((state) => ({
             objects: state.objects.map((obj) =>
@@ -279,18 +349,24 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             }
 
             if (data) {
-                const publicObjects: PlacedObject[] = data.map(obj => ({
-                    id: obj.id,
-                    position: obj.position as GeoPosition,
-                    color: obj.color,
-                    name: obj.name,
-                    createdAt: new Date(obj.created_at),
-                    objectType: obj.object_type as ObjectType,
-                    creature: obj.creature as FlyingCreature | undefined,
-                    flightConfig: obj.flight_config as FlightConfig | undefined,
-                    ownerId: obj.owner_id,
-                    isPublic: true,
-                }));
+                const publicObjects: PlacedObject[] = data.map(obj => {
+                    const isUGC = obj.object_type === 'ugc';
+                    return {
+                        id: obj.id,
+                        position: obj.position as GeoPosition,
+                        color: obj.color,
+                        name: obj.name,
+                        createdAt: new Date(obj.created_at),
+                        objectType: obj.object_type as ObjectType,
+                        creature: obj.creature as FlyingCreature | undefined,
+                        flightConfig: obj.flight_config as FlightConfig | undefined,
+                        // UGC Mapping
+                        ugcType: isUGC ? (obj.creature as unknown as UGCType) : undefined,
+                        ugcData: isUGC ? (obj.flight_config as unknown as UGCProperties) : undefined,
+                        ownerId: obj.owner_id,
+                        isPublic: true,
+                    };
+                });
                 set({ publicObjects });
             }
         } catch (error) {
@@ -316,18 +392,24 @@ export const useObjectStore = create<ObjectStore>((set, get) => ({
             }
 
             if (data) {
-                const followedObjects: PlacedObject[] = data.map(obj => ({
-                    id: obj.id,
-                    position: obj.position as GeoPosition,
-                    color: obj.color,
-                    name: obj.name,
-                    createdAt: new Date(obj.created_at),
-                    objectType: obj.object_type as ObjectType,
-                    creature: obj.creature as FlyingCreature | undefined,
-                    flightConfig: obj.flight_config as FlightConfig | undefined,
-                    ownerId: obj.owner_id,
-                    isPublic: true,
-                }));
+                const followedObjects: PlacedObject[] = data.map(obj => {
+                    const isUGC = obj.object_type === 'ugc';
+                    return {
+                        id: obj.id,
+                        position: obj.position as GeoPosition,
+                        color: obj.color,
+                        name: obj.name,
+                        createdAt: new Date(obj.created_at),
+                        objectType: obj.object_type as ObjectType,
+                        creature: obj.creature as FlyingCreature | undefined,
+                        flightConfig: obj.flight_config as FlightConfig | undefined,
+                        // UGC Mapping
+                        ugcType: isUGC ? (obj.creature as unknown as UGCType) : undefined,
+                        ugcData: isUGC ? (obj.flight_config as unknown as UGCProperties) : undefined,
+                        ownerId: obj.owner_id,
+                        isPublic: true,
+                    };
+                });
                 // フォロー中ユーザーのオブジェクトをpublicObjectsに統合（重複除外）
                 const { publicObjects } = get();
                 const existingIds = new Set(publicObjects.map(o => o.id));

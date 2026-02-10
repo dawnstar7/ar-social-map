@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, Text, Image, useGLTF, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import { useObjectStore } from '../store/objectStore';
 import type { PlacedObject } from '../store/objectStore';
@@ -93,6 +93,88 @@ function ARObject({
 
     if (distance > 5000) return null;
 
+    // UGCオブジェクトの処理
+    if (object.objectType === 'ugc' && object.ugcData) {
+        const { ugcType, ugcData } = object;
+        const scale = ugcData.scale || 1.0;
+
+        return (
+            <group
+                ref={groupRef}
+                position={initialPosition}
+            >
+                {/* TEXT */}
+                {ugcType === 'TEXT' && (
+                    <Billboard>
+                        <Text
+                            fontSize={Math.max(0.5, (ugcData.fontSize || 24) / 10)}
+                            color={ugcData.fontColor || 'white'}
+                            outlineWidth={0.05}
+                            outlineColor="black"
+                            anchorX="center"
+                            anchorY="middle"
+                        >
+                            {ugcData.text || 'Text'}
+                        </Text>
+                    </Billboard>
+                )}
+
+                {/* MEDIA (Photo) */}
+                {ugcType === 'MEDIA' && (
+                    <Billboard>
+                        <Image
+                            url={ugcData.url || '/pin.png'}
+                            scale={[5 * scale, 5 * scale * (1 / (ugcData.aspectRatio || 1))]}
+                            transparent
+                            opacity={0.9}
+                        />
+                    </Billboard>
+                )}
+
+                {/* MODEL (GLB) - useGLTF inside a suspicious component if needed, or straight here if allowed */}
+                {ugcType === 'MODEL' && ugcData.modelUrl && (
+                    <Suspense fallback={<Html><div style={{ color: 'white' }}>Loading...</div></Html>}>
+                        <ModelViewer url={ugcData.modelUrl} scale={scale} />
+                    </Suspense>
+                )}
+
+                {/* AUDIO */}
+                {ugcType === 'AUDIO' && (
+                    <Billboard>
+                        <mesh>
+                            <circleGeometry args={[2 * scale, 32]} />
+                            <meshBasicMaterial color="lime" transparent opacity={0.5} />
+                        </mesh>
+                        <Text
+                            position={[0, 0, 0.1]}
+                            fontSize={1}
+                            color="black"
+                            anchorX="center"
+                            anchorY="middle"
+                        >
+                            🔊
+                        </Text>
+                        {/* Audio is tricky without user gesture, keeping it visual for now */}
+                    </Billboard>
+                )}
+
+                <Html position={[0, -2 * scale, 0]} center distanceFactor={15} style={{ pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                    <div style={{
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        textAlign: 'center',
+                    }}>
+                        {distance.toFixed(0)}m
+                    </div>
+                </Html>
+            </group>
+        );
+    }
+
+    // 既存のSphere/Flying Objectレンダリング
     const size = Math.max(1, Math.min(5, distance / 10));
     const isFlyingObject = object.objectType === 'flying';
 
@@ -145,6 +227,14 @@ function ARObject({
             </Html>
         </group>
     );
+}
+
+// Model Viewer Component
+function ModelViewer({ url, scale }: { url: string; scale: number }) {
+    const { scene } = useGLTF(url);
+    const clonedScene = useMemo(() => scene.clone(), [scene]);
+
+    return <primitive object={clonedScene} scale={[scale * 5, scale * 5, scale * 5]} />;
 }
 
 // ARシーン（シンプル版 - 位置更新はARObjectで行う）

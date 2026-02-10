@@ -640,6 +640,32 @@ export function Map3DView() {
                 </ErrorBoundary>
             </div>
 
+            {/* クリエイトボタン (独立) */}
+            <button
+                className="create-mode-btn"
+                onClick={() => setShowUGCPanel(true)}
+                style={{
+                    position: 'absolute',
+                    bottom: '180px',
+                    right: '20px',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #FF00CC, #3333FF)',
+                    border: '3px solid white',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                    color: 'white',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    zIndex: 100,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                🎨
+            </button>
+
             {/* 配置モード選択ボタン */}
             <button className="mode-select-btn" onClick={() => setShowModeSelect(!showModeSelect)}>
                 {getPlaceModeLabel()} ▼

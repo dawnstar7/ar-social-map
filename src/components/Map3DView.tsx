@@ -24,6 +24,7 @@ import {
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { useObjectStore, creatureNames, type FlyingCreature } from '../store/objectStore';
+import { useSocialStore } from '../store/socialStore';
 import { calculateCurrentPosition } from '../utils/flyingBehavior';
 import { getDeveloperObjectsAsPlaced } from '../utils/developerObjects';
 import { ObjectListPanel } from './ObjectListPanel';
@@ -35,6 +36,8 @@ const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_TOKEN || '';
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 import { UGCCreatorPanel } from './UGCCreatorPanel';
+import { SocialThread } from './SocialThread';
+import { RoomPanel } from './RoomPanel';
 
 // 配置モード
 type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo' | 'ugc';
@@ -54,13 +57,30 @@ export function Map3DView() {
     const [showObjectList, setShowObjectList] = useState(false);
     const [showLocationSearch, setShowLocationSearch] = useState(false);
     const [showUGCPanel, setShowUGCPanel] = useState(false);
-    const [showAltitudeControl, setShowAltitudeControl] = useState(false);
-    const [placeAltitude, setPlaceAltitude] = useState(0);
+    // const [showAltitudeControl, setShowAltitudeControl] = useState(false);
+    // const [placeAltitude, setPlaceAltitude] = useState(0);
+    const placeAltitude = 0; // Fixed for now, can re-enable later
+    const [selectedObject, setSelectedObject] = useState<{ id: string; name: string } | null>(null);
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, removeObject, clearAll, userId } = useObjectStore();
+    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, clearAll, userId } = useObjectStore();
+    const { onlineUsers, otherFootprints, initializeSocial, broadcastPresence, recordFootprint } = useSocialStore();
+
+    // ソーシャル機能初期化 & 定期ブロードキャスト
+    useEffect(() => {
+        initializeSocial();
+
+        const interval = setInterval(() => {
+            if (currentPosition) {
+                broadcastPresence(currentPosition);
+                recordFootprint(currentPosition);
+            }
+        }, 5000); // 5秒ごとに位置送信
+
+        return () => clearInterval(interval);
+    }, [initializeSocial, broadcastPresence, recordFootprint, currentPosition]);
 
     const VISIBLE_RADIUS = 2000;
 
@@ -379,18 +399,111 @@ export function Map3DView() {
 
     return (
         <div className="map-container cesium-container">
-            {/* ヘッダー */}
-            <div className="map-header">
-                <h2>🌍 3Dマップ</h2>
-                <div className="header-buttons">
-                    <button className="icon-btn" onClick={() => setShowLocationSearch(true)} title="検索">
-                        🔍
+            {/* UI Overlay Container */}
+            <div className="app-container">
+                {/* Top Container: Header + Search */}
+                <div className="top-container">
+                    {/* Header Pill */}
+                    <div className="global-header">
+                        <button className="profile-btn">
+                            <span style={{ fontSize: '20px' }}>👤</span>
+                        </button>
+                        <div className="glass-pill header-title-pill">
+                            Global Connect
+                        </div>
+                        <button className="notif-btn">
+                            <span style={{ fontSize: '20px' }}>🔔</span>
+                        </button>
+                    </div>
+
+                    {/* Status Message Overlay */}
+                    {statusMessage && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '130px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0,0,0,0.6)',
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            color: 'white',
+                            fontSize: '12px',
+                            pointerEvents: 'none',
+                            zIndex: 200
+                        }}>
+                            {statusMessage}
+                        </div>
+                    )}
+
+                    {/* Mode Select Panel (Custom) */}
+                    {showModeSelect && (
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '90px',
+                            left: '20px',
+                            background: 'rgba(20, 20, 30, 0.9)',
+                            backdropFilter: 'blur(20px)',
+                            padding: '10px',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            zIndex: 200
+                        }}>
+                            <button className={placeMode === 'static' ? 'active' : ''} onClick={() => { setPlaceMode('static'); setShowModeSelect(false); }}>📍 Pin</button>
+                            <button className={placeMode === 'ugc' ? 'active' : ''} onClick={() => { setPlaceMode('ugc'); setShowModeSelect(false); }}>🎨 Create</button>
+                            <button className={placeMode === 'dragon' ? 'active' : ''} onClick={() => { setPlaceMode('dragon'); setShowModeSelect(false); }}>🐉 Dragon</button>
+                        </div>
+                    )}
+
+                    <RoomPanel />
+
+                    {/* Search Pill */}
+                    <button className="glass-pill search-pill" onClick={() => setShowLocationSearch(true)}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Search location...
                     </button>
-                    <button className="icon-btn" onClick={resetCamera} disabled={!currentPosition} title="カメラリセット">
-                        🔄
+                </div>
+
+                {/* Right Stack: Controls */}
+                <div className="right-stack">
+                    <button className="control-btn" onClick={resetCamera} title="Reset Camera">
+                        <span>N</span>
                     </button>
-                    <button className="icon-btn" onClick={locateMe} disabled={isLocating} title="現在地">
-                        {isLocating ? '⏳' : '📍'}
+                    <button className="control-btn" onClick={locateMe} title="My Location">
+                        {isLocating ? '...' : '➤'}
+                    </button>
+                    <div className="zoom-stack">
+                        <button className="zoom-btn" onClick={() => {
+                            const viewer = viewerRef.current?.cesiumElement;
+                            if (viewer) viewer.camera.zoomIn(100);
+                        }}>+</button>
+                        <div className="zoom-divider"></div>
+                        <button className="zoom-btn" onClick={() => {
+                            const viewer = viewerRef.current?.cesiumElement;
+                            if (viewer) viewer.camera.zoomOut(100);
+                        }}>−</button>
+                    </div>
+                </div>
+
+                {/* Bottom Container: Layers + FAB */}
+                <div className="bottom-container">
+                    <button className="glass-pill btn-layers" onClick={() => setShowModeSelect(!showModeSelect)}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                        {getPlaceModeLabel()}
+                    </button>
+
+                    <button className="fab-create" onClick={placeObject} disabled={!crosshairPosition}>
+                        <div className="fab-icon">📍</div>
+                        Place Pin
                     </button>
                 </div>
             </div>
@@ -453,10 +566,7 @@ export function Map3DView() {
                                             scale: obj.ugcData.scale || 1.0,
                                         }}
                                         onClick={() => {
-                                            if (isOwn) {
-                                                removeObject(obj.id);
-                                                setStatusMessage('削除');
-                                            }
+                                            setSelectedObject({ id: obj.id, name: obj.ugcData?.text || 'Text' });
                                         }}
                                     />
                                 );
@@ -487,7 +597,7 @@ export function Map3DView() {
                                             verticalOrigin: VerticalOrigin.TOP,
                                             distanceDisplayCondition: { near: 0, far: 1000 } as any,
                                         }}
-                                        onClick={() => isOwn && removeObject(obj.id)}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '📷 Photo' })}
                                     />
                                 );
                             }
@@ -513,7 +623,7 @@ export function Map3DView() {
                                             pixelOffset: new Cartesian2(0, -50),
                                             distanceDisplayCondition: { near: 0, far: 1000 } as any,
                                         }}
-                                        onClick={() => isOwn && removeObject(obj.id)}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '📦 Model' })}
                                     />
                                 );
                             }
@@ -543,7 +653,7 @@ export function Map3DView() {
                                             style: 2,
                                             pixelOffset: new Cartesian2(0, -20),
                                         }}
-                                        onClick={() => isOwn && removeObject(obj.id)}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '🔊 Audio Spot' })}
                                     />
                                 );
                             }
@@ -580,12 +690,7 @@ export function Map3DView() {
                                         } as any // 型定義回避
                                     }}
                                     onClick={() => {
-                                        if (isOwn) {
-                                            removeObject(obj.id);
-                                            setStatusMessage('削除');
-                                        } else {
-                                            setStatusMessage(`${obj.name}（他ユーザーのオブジェクト）`);
-                                        }
+                                        setSelectedObject({ id: obj.id, name: obj.name });
                                     }}
                                 />
                             );
@@ -620,16 +725,51 @@ export function Map3DView() {
                                         style: 2,
                                     }}
                                     onClick={() => {
-                                        if (isOwn) {
-                                            removeObject(obj.id);
-                                            setStatusMessage('削除');
-                                        } else {
-                                            setStatusMessage(`${obj.name}（他ユーザーのオブジェクト）`);
-                                        }
+                                        setSelectedObject({ id: obj.id, name: obj.name });
                                     }}
                                 />
                             );
                         })}
+
+                        {/* ソーシャル: 他のユーザー（オーブ） */}
+                        {Array.from(onlineUsers.values()).map((user) => (
+                            <Entity
+                                key={user.userId}
+                                position={Cartesian3.fromDegrees(
+                                    user.position.longitude,
+                                    user.position.latitude,
+                                    (user.position.altitude || 0) + 2
+                                )}
+                                point={{
+                                    pixelSize: 15,
+                                    color: Color.fromCssColorString(user.color).withAlpha(0.6),
+                                    outlineColor: Color.WHITE,
+                                    outlineWidth: 2,
+                                }}
+                                label={{
+                                    text: 'Other User', // 名前はまだない
+                                    font: '10px sans-serif',
+                                    fillColor: Color.WHITE,
+                                    outlineWidth: 2,
+                                    style: 2,
+                                    pixelOffset: new Cartesian2(0, -20),
+                                    distanceDisplayCondition: { near: 0, far: 2000 } as any,
+                                }}
+                            />
+                        ))}
+
+                        {/* ソーシャル: 足跡（他人の痕跡） */}
+                        {otherFootprints.length > 1 && (
+                            <Entity
+                                polyline={{
+                                    positions: Cartesian3.fromDegreesArrayHeights(
+                                        otherFootprints.flatMap(p => [p.longitude, p.latitude, (p.altitude || 0) + 1])
+                                    ),
+                                    width: 5,
+                                    material: Color.CYAN.withAlpha(0.3),
+                                }}
+                            />
+                        )}
                     </Viewer>
 
                     {/* 照準 */}
@@ -641,102 +781,16 @@ export function Map3DView() {
                 </ErrorBoundary>
             </div>
 
-            {/* クリエイトボタン (独立) */}
-            <button
-                className="create-mode-btn"
-                onClick={() => setShowUGCPanel(true)}
-                style={{
-                    position: 'absolute',
-                    bottom: '180px',
-                    right: '20px',
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FF00CC, #3333FF)',
-                    border: '3px solid white',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-                    color: 'white',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    zIndex: 100,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
-                🎨
-            </button>
 
-            {/* 配置モード選択ボタン */}
-            <button className="mode-select-btn" onClick={() => setShowModeSelect(!showModeSelect)}>
-                {getPlaceModeLabel()} ▼
-            </button>
 
-            {/* モード選択パネル */}
-            {showModeSelect && (
-                <div className="mode-select-panel">
-                    <button className={placeMode === 'static' ? 'active' : ''} onClick={() => { setPlaceMode('static'); setShowModeSelect(false); }}>
-                        📍 ピン（静止）
-                    </button>
-                    <button className={placeMode === 'dragon' ? 'active' : ''} onClick={() => { setPlaceMode('dragon'); setShowModeSelect(false); }}>
-                        🐉 ドラゴン（飛行）
-                    </button>
-                    <button className={placeMode === 'bird' ? 'active' : ''} onClick={() => { setPlaceMode('bird'); setShowModeSelect(false); }}>
-                        🦅 鳥（飛行）
-                    </button>
-                    <button className={placeMode === 'ufo' ? 'active' : ''} onClick={() => { setPlaceMode('ufo'); setShowModeSelect(false); }}>
-                        🛸 UFO（飛行）
-                    </button>
-                    <button className={placeMode === 'ugc' ? 'active' : ''} onClick={() => { setPlaceMode('ugc'); setShowModeSelect(false); }}>
-                        🎨 クリエイト（自由）
-                    </button>
-                </div>
+            {/* ソーシャルスレッド */}
+            {selectedObject && (
+                <SocialThread
+                    objectId={selectedObject.id}
+                    objectName={selectedObject.name}
+                    onClose={() => setSelectedObject(null)}
+                />
             )}
-
-            {/* 高度コントロール（トグル式） */}
-            <div className={`altitude-control ${showAltitudeControl ? 'visible' : ''}`}>
-                <button
-                    className="altitude-toggle-btn"
-                    onClick={() => setShowAltitudeControl(!showAltitudeControl)}
-                >
-                    📏 高度: +{placeAltitude}m {showAltitudeControl ? '▼' : '▲'}
-                </button>
-
-                {showAltitudeControl && (
-                    <div className="altitude-panel">
-                        <label className="altitude-label">
-                            {crosshairPosition && (
-                                <span className="altitude-detail">
-                                    （海抜{((crosshairPosition.altitude || 0) + placeAltitude).toFixed(0)}m）
-                                </span>
-                            )}
-                        </label>
-                        <input
-                            type="range"
-                            min="0"
-                            max="500"
-                            step="5"
-                            value={placeAltitude}
-                            onChange={(e) => setPlaceAltitude(Number(e.target.value))}
-                            className="altitude-slider"
-                        />
-                        <div className="altitude-presets">
-                            <button onClick={() => setPlaceAltitude(0)} className={placeAltitude === 0 ? 'active' : ''}>地面</button>
-                            <button onClick={() => setPlaceAltitude(10)} className={placeAltitude === 10 ? 'active' : ''}>10m</button>
-                            <button onClick={() => setPlaceAltitude(50)} className={placeAltitude === 50 ? 'active' : ''}>50m</button>
-                            <button onClick={() => setPlaceAltitude(100)} className={placeAltitude === 100 ? 'active' : ''}>100m</button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* 配置ボタン */}
-            <button className="place-btn" onClick={placeObject} disabled={!crosshairPosition}>
-                {getPlaceModeLabel()} 配置
-            </button>
-
-            {/* ステータス */}
-            {statusMessage && <div className="status-bar">{statusMessage}</div>}
 
             {/* 下部パネル */}
             <div className="bottom-panel">

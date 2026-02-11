@@ -15,10 +15,4 @@ body,
   overflow: hidden;
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #0f172a;
-  color: #f8fafc;
-}
+/* Base background is handled by App.css */

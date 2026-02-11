@@ -17,20 +17,20 @@ const tabs = [
 
 export function BottomNavBar({ currentMode, onModeChange }: BottomNavBarProps) {
     return (
-        <nav className="bottom-nav">
+        <nav className="bottom-nav-dock glass-panel">
             {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentMode === tab.mode;
                 return (
                     <button
                         key={tab.mode}
-                        className={`bottom-nav-tab ${isActive ? 'active' : ''}`}
+                        className={`nav-item ${isActive ? 'active' : ''}`}
                         onClick={() => onModeChange(tab.mode)}
                     >
-                        <span className="bottom-nav-icon">
+                        <div className="nav-icon-container">
                             <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                        </span>
-                        <span className="bottom-nav-label">{tab.label}</span>
+                        </div>
+                        <span className="nav-label">{tab.label}</span>
                     </button>
                 );
             })}

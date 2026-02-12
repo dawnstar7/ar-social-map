@@ -37,7 +37,6 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 import { UGCCreatorPanel } from './UGCCreatorPanel';
 import { SocialThread } from './SocialThread';
-import { RoomPanel } from './RoomPanel';
 
 // 配置モード
 type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo' | 'ugc';
@@ -65,7 +64,7 @@ export function Map3DView() {
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, clearAll, userId } = useObjectStore();
+    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, userId } = useObjectStore();
     const { onlineUsers, otherFootprints, initializeSocial, broadcastPresence, recordFootprint } = useSocialStore();
 
     // ソーシャル機能初期化 & 定期ブロードキャスト
@@ -401,81 +400,31 @@ export function Map3DView() {
         <div className="map-container cesium-container">
             {/* UI Overlay Container */}
             <div className="app-container">
-                {/* Top Container: Header + Search */}
+                {/* Top: 場所検索ボタン */}
                 <div className="top-container">
-                    {/* Header Pill */}
-                    <div className="global-header">
-                        <button className="profile-btn">
-                            <span style={{ fontSize: '20px' }}>👤</span>
-                        </button>
-                        <div className="glass-pill header-title-pill">
-                            Global Connect
-                        </div>
-                        <button className="notif-btn">
-                            <span style={{ fontSize: '20px' }}>🔔</span>
-                        </button>
-                    </div>
-
-                    {/* Status Message Overlay */}
-                    {statusMessage && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '130px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(0,0,0,0.6)',
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            color: 'white',
-                            fontSize: '12px',
-                            pointerEvents: 'none',
-                            zIndex: 200
-                        }}>
-                            {statusMessage}
-                        </div>
-                    )}
-
-                    {/* Mode Select Panel (Custom) */}
-                    {showModeSelect && (
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '90px',
-                            left: '20px',
-                            background: 'rgba(20, 20, 30, 0.9)',
-                            backdropFilter: 'blur(20px)',
-                            padding: '10px',
-                            borderRadius: '16px',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            zIndex: 200
-                        }}>
-                            <button className={placeMode === 'static' ? 'active' : ''} onClick={() => { setPlaceMode('static'); setShowModeSelect(false); }}>📍 Pin</button>
-                            <button className={placeMode === 'ugc' ? 'active' : ''} onClick={() => { setPlaceMode('ugc'); setShowModeSelect(false); }}>🎨 Create</button>
-                            <button className={placeMode === 'dragon' ? 'active' : ''} onClick={() => { setPlaceMode('dragon'); setShowModeSelect(false); }}>🐉 Dragon</button>
-                        </div>
-                    )}
-
-                    <RoomPanel />
-
-                    {/* Search Pill */}
                     <button className="glass-pill search-pill" onClick={() => setShowLocationSearch(true)}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
-                        Search location...
+                        場所を検索...
                     </button>
                 </div>
 
-                {/* Right Stack: Controls */}
+                {/* ステータスメッセージ */}
+                {statusMessage && (
+                    <div className="map-status-message">
+                        {statusMessage}
+                    </div>
+                )}
+
+                {/* 右: マップ操作ボタン */}
                 <div className="right-stack">
-                    <button className="control-btn" onClick={resetCamera} title="Reset Camera">
-                        <span>N</span>
+                    <button className="control-btn" onClick={locateMe} title="現在地">
+                        {isLocating ? '...' : '📍'}
                     </button>
-                    <button className="control-btn" onClick={locateMe} title="My Location">
-                        {isLocating ? '...' : '➤'}
+                    <button className="control-btn" onClick={resetCamera} title="カメラリセット">
+                        🧭
                     </button>
                     <div className="zoom-stack">
                         <button className="zoom-btn" onClick={() => {
@@ -490,22 +439,43 @@ export function Map3DView() {
                     </div>
                 </div>
 
-                {/* Bottom Container: Layers + FAB */}
+                {/* 下: モード選択 + 配置ボタン */}
                 <div className="bottom-container">
                     <button className="glass-pill btn-layers" onClick={() => setShowModeSelect(!showModeSelect)}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                            <polyline points="2 17 12 22 22 17"></polyline>
-                            <polyline points="2 12 12 17 22 12"></polyline>
-                        </svg>
                         {getPlaceModeLabel()}
                     </button>
 
                     <button className="fab-create" onClick={placeObject} disabled={!crosshairPosition}>
-                        <div className="fab-icon">📍</div>
-                        Place Pin
+                        <div className="fab-icon">＋</div>
+                        配置
                     </button>
                 </div>
+
+                {/* モード選択パネル */}
+                {showModeSelect && (
+                    <div className="mode-select-panel">
+                        <button className={`mode-select-item ${placeMode === 'static' ? 'active' : ''}`} onClick={() => { setPlaceMode('static'); setShowModeSelect(false); }}>
+                            <span className="mode-icon">📍</span>
+                            <span className="mode-label">ピン</span>
+                        </button>
+                        <button className={`mode-select-item ${placeMode === 'ugc' ? 'active' : ''}`} onClick={() => { setPlaceMode('ugc'); setShowModeSelect(false); }}>
+                            <span className="mode-icon">🎨</span>
+                            <span className="mode-label">クリエイト</span>
+                        </button>
+                        <button className={`mode-select-item ${placeMode === 'dragon' ? 'active' : ''}`} onClick={() => { setPlaceMode('dragon'); setShowModeSelect(false); }}>
+                            <span className="mode-icon">🐉</span>
+                            <span className="mode-label">ドラゴン</span>
+                        </button>
+                        <button className={`mode-select-item ${placeMode === 'bird' ? 'active' : ''}`} onClick={() => { setPlaceMode('bird'); setShowModeSelect(false); }}>
+                            <span className="mode-icon">🦅</span>
+                            <span className="mode-label">鳥</span>
+                        </button>
+                        <button className={`mode-select-item ${placeMode === 'ufo' ? 'active' : ''}`} onClick={() => { setPlaceMode('ufo'); setShowModeSelect(false); }}>
+                            <span className="mode-icon">🛸</span>
+                            <span className="mode-label">UFO</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Cesiumビューア (ErrorBoundaryでラップ) */}
@@ -517,7 +487,7 @@ export function Map3DView() {
                         timeline={false}
                         animation={false}
                         fullscreenButton={false}
-                        baseLayerPicker={true}
+                        baseLayerPicker={false}
                         navigationHelpButton={false}
                         homeButton={false}
                         geocoder={false}
@@ -792,19 +762,12 @@ export function Map3DView() {
                 />
             )}
 
-            {/* 下部パネル */}
-            <div className="bottom-panel">
-                <button className="object-count-btn" onClick={() => setShowObjectList(true)}>
-                    <span className="count-number">{allObjects.length}</span>
-                    <span className="count-label">オブジェクト</span>
-                    <span className="count-chevron">▲</span>
+            {/* オブジェクト数表示（タップでリスト表示） */}
+            {allObjects.length > 0 && (
+                <button className="object-count-floating" onClick={() => setShowObjectList(true)}>
+                    {allObjects.length} オブジェクト
                 </button>
-                {userObjects.length > 0 && (
-                    <button className="clear-btn" onClick={() => { clearAll(); setStatusMessage('全削除'); }}>
-                        🗑️ 全削除
-                    </button>
-                )}
-            </div>
+            )}
 
             {/* オブジェクト一覧パネル */}
             <ObjectListPanel
@@ -833,30 +796,11 @@ export function Map3DView() {
                             altitude: groundAltitude + placeAltitude,
                         };
                         addUGCObject(positionWithAltitude, type, props);
-                        setStatusMessage('クリエイティブオブジェクトを配置しました！');
+                        setStatusMessage('配置しました！');
                         setShowUGCPanel(false);
                     }
                 }}
             />
-
-            {/* 重大エラーオーバーレイ */}
-            {globalError && (
-                <div style={{
-                    position: 'absolute',
-                    top: '20%',
-                    left: '10%',
-                    right: '10%',
-                    background: 'rgba(255, 0, 0, 0.9)',
-                    color: 'white',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    zIndex: 9999,
-                    pointerEvents: 'none'
-                }}>
-                    <h3>⚠️ システムエラー</h3>
-                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{globalError}</p>
-                </div>
-            )}
         </div>
     );
 }

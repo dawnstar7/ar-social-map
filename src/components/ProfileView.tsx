@@ -14,6 +14,7 @@ import { useState, useCallback } from 'react';
 import { useProfileStore } from '../store/profileStore';
 import { useObjectStore, creatureEmoji, type FlyingCreature } from '../store/objectStore';
 import { useFollowStore } from '../store/followStore';
+import { useGameStore, getLevelInfo, getXPProgress, CREATURE_INFO, RARITY_INFO, ACHIEVEMENTS } from '../store/gameStore';
 
 const AVATAR_COLORS = [
     '#6366f1', '#f43f5e', '#22c55e', '#f59e0b',
@@ -24,6 +25,9 @@ export function ProfileView() {
     const { profile, isLoading, initError, updateDisplayName, updateAvatarColor } = useProfileStore();
     const { objects, removeObject, userId } = useObjectStore();
     const { following, followers } = useFollowStore();
+    const { coins, xp, stats, creatures, unlockedAchievements } = useGameStore();
+    const levelInfo = getLevelInfo(xp);
+    const xpProgress = getXPProgress(xp);
     const [editingName, setEditingName] = useState(false);
     const [nameInput, setNameInput] = useState('');
     const [copiedId, setCopiedId] = useState(false);
@@ -209,6 +213,79 @@ export function ProfileView() {
                             <span className="profile-stat-number">{objects.length}</span>
                             <span className="profile-stat-label">オブジェクト</span>
                         </div>
+                    </div>
+                </div>
+
+                {/* ゲームステータス */}
+                <div className="profile-section">
+                    <h3 className="profile-section-title">🎮 ゲームステータス</h3>
+                    <div className="profile-game-status">
+                        <div className="profile-game-level">
+                            <span className="profile-game-level-badge">Lv.{levelInfo.level}</span>
+                            <span className="profile-game-level-title">{levelInfo.title}</span>
+                        </div>
+                        <div className="profile-game-xp-bar">
+                            <div className="profile-game-xp-fill" style={{ width: `${xpProgress * 100}%` }} />
+                        </div>
+                        <span className="profile-game-xp-text">{xp} / {levelInfo.maxXP} XP</span>
+                    </div>
+                    <div className="profile-stats" style={{ marginTop: '12px' }}>
+                        <div className="profile-stat">
+                            <span className="profile-stat-number">🪙 {coins.toLocaleString()}</span>
+                            <span className="profile-stat-label">コイン</span>
+                        </div>
+                        <div className="profile-stat">
+                            <span className="profile-stat-number">{(stats.totalDistanceM / 1000).toFixed(1)}km</span>
+                            <span className="profile-stat-label">総歩行距離</span>
+                        </div>
+                        <div className="profile-stat">
+                            <span className="profile-stat-number">🔥 {stats.loginStreak}</span>
+                            <span className="profile-stat-label">連続日数</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* クリーチャーコレクション */}
+                {creatures.length > 0 && (
+                    <div className="profile-section">
+                        <h3 className="profile-section-title">🐾 クリーチャー ({creatures.length})</h3>
+                        <div className="profile-creature-list">
+                            {creatures.map((c) => {
+                                const info = CREATURE_INFO[c.type];
+                                const rarity = RARITY_INFO[c.rarity];
+                                return (
+                                    <div key={c.id} className="object-list-item">
+                                        <span className="object-list-icon">{info.emoji}</span>
+                                        <div className="object-list-info">
+                                            <div className="object-list-name">{c.name}</div>
+                                            <div className="object-list-date" style={{ color: rarity.color }}>
+                                                {rarity.label}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* 実績 */}
+                <div className="profile-section">
+                    <h3 className="profile-section-title">🏆 実績 ({unlockedAchievements.length}/{ACHIEVEMENTS.length})</h3>
+                    <div className="profile-achievements-grid">
+                        {ACHIEVEMENTS.map((ach) => {
+                            const unlocked = unlockedAchievements.includes(ach.id);
+                            return (
+                                <div
+                                    key={ach.id}
+                                    className={`profile-achievement-badge ${unlocked ? 'unlocked' : 'locked'}`}
+                                    title={ach.description}
+                                >
+                                    <span>{unlocked ? ach.icon : '🔒'}</span>
+                                    <span className="profile-achievement-name">{ach.title}</span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 

@@ -37,8 +37,6 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 import { UGCCreatorPanel } from './UGCCreatorPanel';
 import { SocialThread } from './SocialThread';
-import { GameHUD } from './GameHUD';
-import { useGameStore, CREATURE_INFO, RARITY_INFO } from '../store/gameStore';
 
 // 配置モード
 type PlaceMode = 'static' | 'dragon' | 'bird' | 'ufo' | 'ugc';
@@ -68,7 +66,6 @@ export function Map3DView() {
 
     const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, userId } = useObjectStore();
     const { onlineUsers, otherFootprints, initializeSocial, broadcastPresence, recordFootprint } = useSocialStore();
-    const { updatePosition: gameUpdatePosition, onObjectPlaced, generateEggs, collectEgg, eggs } = useGameStore();
 
     // ソーシャル機能初期化 & 定期ブロードキャスト
     useEffect(() => {
@@ -127,9 +124,6 @@ export function Map3DView() {
             setIsLocating(false);
             setStatusMessage('');
 
-            // ゲーム: 位置更新 & エッグ生成
-            gameUpdatePosition(newPos);
-            generateEggs(newPos);
         };
 
         navigator.geolocation.getCurrentPosition(
@@ -293,7 +287,6 @@ export function Map3DView() {
         if (placeMode === 'static') {
             addObject(positionWithAltitude, `📍 ${userObjects.length + 1}`, '#ff4444');
             setStatusMessage(`ピン配置完了！（地面+${placeAltitude}m / 海抜${positionWithAltitude.altitude?.toFixed(0)}m）`);
-            onObjectPlaced(); // ゲーム報酬
         } else if (placeMode === 'ugc') {
             setShowUGCPanel(true);
             // UGCパネルが開くのでここではセットしない
@@ -306,7 +299,6 @@ export function Map3DView() {
                 maxAltitude: Math.max(actualAlt + 25, 40),
             });
             setStatusMessage(`${creatureNames[creature]} 出現！（地面+${placeAltitude}m）`);
-            onObjectPlaced(); // ゲーム報酬
         }
     }, [crosshairPosition, placeMode, placeAltitude, addObject, addFlyingObject, userObjects.length]);
 
@@ -408,9 +400,6 @@ export function Map3DView() {
 
     return (
         <div className="map-container cesium-container">
-            {/* ゲームHUD */}
-            <GameHUD />
-
             {/* UI Overlay Container */}
             <div className="app-container">
                 {/* Top: 場所検索ボタン */}
@@ -711,42 +700,6 @@ export function Map3DView() {
                             );
                         })}
 
-                        {/* ゲーム: クリーチャーエッグ */}
-                        {eggs.filter(e => e.expiresAt > Date.now()).map((egg) => {
-                            const info = CREATURE_INFO[egg.creatureType];
-                            const rarity = RARITY_INFO[egg.rarity];
-                            return (
-                                <Entity
-                                    key={egg.id}
-                                    position={Cartesian3.fromDegrees(
-                                        egg.position.longitude,
-                                        egg.position.latitude,
-                                        5
-                                    )}
-                                    label={{
-                                        text: `🥚\n${rarity.label}`,
-                                        font: '16px sans-serif',
-                                        fillColor: Color.fromCssColorString(rarity.color),
-                                        outlineColor: Color.BLACK,
-                                        outlineWidth: 3,
-                                        style: 2,
-                                        verticalOrigin: VerticalOrigin.BOTTOM,
-                                        distanceDisplayCondition: { near: 0, far: 5000 } as any,
-                                    }}
-                                    ellipsoid={{
-                                        radii: new Cartesian3(8, 8, 10),
-                                        material: Color.fromCssColorString(rarity.color).withAlpha(0.6),
-                                        outline: true,
-                                        outlineColor: Color.fromCssColorString(rarity.color),
-                                        outlineWidth: 2,
-                                    }}
-                                    onClick={() => {
-                                        collectEgg(egg.id);
-                                        setStatusMessage(`${rarity.label}の${info.emoji}${info.name}を発見！`);
-                                    }}
-                                />
-                            );
-                        })}
 
                         {/* ソーシャル: 他のユーザー（オーブ） */}
                         {Array.from(onlineUsers.values()).map((user) => (
@@ -845,7 +798,6 @@ export function Map3DView() {
                         addUGCObject(positionWithAltitude, type, props);
                         setStatusMessage('配置しました！');
                         setShowUGCPanel(false);
-                        onObjectPlaced(); // ゲーム報酬
                     }
                 }}
             />

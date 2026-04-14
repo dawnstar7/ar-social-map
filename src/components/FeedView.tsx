@@ -12,7 +12,6 @@ import { useFollowStore } from '../store/followStore';
 import { useObjectStore, creatureEmoji } from '../store/objectStore';
 import { useProfileStore } from '../store/profileStore';
 import { UserProfileView } from './UserProfileView';
-import { GameDashboard } from './GameDashboard';
 
 interface FeedViewProps {
     onNavigateToMap?: () => void;
@@ -148,9 +147,6 @@ export function FeedView({ onNavigateToMap, onNavigateToSearch }: FeedViewProps)
                         <span className="feed-action-label">ユーザーを探す</span>
                     </button>
                 </div>
-
-                {/* ゲームダッシュボード */}
-                <GameDashboard />
 
                 {/* フォロー中のユーザー一覧（横スクロール） */}
                 {followingProfiles.length > 0 && (

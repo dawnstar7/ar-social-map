@@ -7,7 +7,6 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { useObjectStore } from './store/objectStore';
 import { useProfileStore } from './store/profileStore';
 import { useFollowStore } from './store/followStore';
-import { useGameStore } from './store/gameStore';
 import './App.css';
 
 type AppMode = 'home' | 'map' | 'ar' | 'search' | 'profile';
@@ -22,13 +21,9 @@ function App() {
   const { initialize, isInitialized, userId, fetchFollowedObjects } = useObjectStore();
   const { initializeProfile } = useProfileStore();
   const { initializeFollows, following } = useFollowStore();
-  const { initialize: initGame } = useGameStore();
-
-  // Supabase初期化 + プロフィール + フォロー初期化 + ゲーム初期化
   useEffect(() => {
     initialize();
-    initGame();
-  }, [initialize, initGame]);
+  }, [initialize]);
 
   useEffect(() => {
     if (isInitialized && userId) {

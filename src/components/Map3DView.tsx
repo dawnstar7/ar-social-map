@@ -641,7 +641,7 @@ export function Map3DView() {
                                 );
                             }
 
-                            // Legacy Static Objects (Spheres)
+                            // Static Pin Objects
                             return (
                                 <Entity
                                     key={obj.id}
@@ -650,27 +650,23 @@ export function Map3DView() {
                                         obj.position.latitude,
                                         displayAltitude + 2
                                     )}
-                                    // 3D球体（オーブ）として表示
-                                    ellipsoid={{
-                                        radii: new Cartesian3(5.0, 5.0, 5.0), // 半径5mの真球
-                                        material: Color.fromCssColorString(obj.color).withAlpha(0.9),
-                                        outline: true,
+                                    point={{
+                                        pixelSize: 24,
+                                        color: Color.fromCssColorString(obj.color),
                                         outlineColor: Color.WHITE,
-                                        outlineWidth: 2,
+                                        outlineWidth: 3,
+                                        distanceDisplayCondition: { near: 0, far: 50000 } as any,
                                     }}
                                     label={{
-                                        text: `${obj.name}${!isOwn ? ' 👤' : ''}\n海抜${obj.position.altitude?.toFixed(0) || 0}m`,
-                                        font: '14px sans-serif',
+                                        text: `${obj.name}${!isOwn ? ' 👤' : ''}`,
+                                        font: 'bold 16px sans-serif',
                                         fillColor: Color.WHITE,
                                         outlineColor: Color.BLACK,
                                         outlineWidth: 4,
                                         style: 2, // FILL_AND_OUTLINE
-                                        pixelOffset: new Cartesian2(0, -60), // 球体の上に出るように調整
+                                        pixelOffset: new Cartesian2(0, -22),
                                         verticalOrigin: VerticalOrigin.BOTTOM,
-                                        distanceDisplayCondition: {
-                                            near: 0,
-                                            far: 10000,
-                                        } as any // 型定義回避
+                                        distanceDisplayCondition: { near: 0, far: 20000 } as any,
                                     }}
                                     onClick={() => {
                                         setSelectedObject({ id: obj.id, name: obj.name });
@@ -694,9 +690,10 @@ export function Map3DView() {
                                     position={Cartesian3.fromDegrees(pos.longitude, pos.latitude, flyAlt)}
                                     billboard={{
                                         image: iconUrl,
-                                        width: 48,
-                                        height: 48,
+                                        width: 72,
+                                        height: 72,
                                         verticalOrigin: VerticalOrigin.CENTER,
+                                        distanceDisplayCondition: { near: 0, far: 50000 } as any,
                                     }}
                                     label={{
                                         text: `${obj.name}${!isOwn ? ' 👤' : ''}`,

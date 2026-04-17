@@ -59,12 +59,20 @@ export function Map3DView() {
     // const [showAltitudeControl, setShowAltitudeControl] = useState(false);
     // const [placeAltitude, setPlaceAltitude] = useState(0);
     const placeAltitude = 0; // Fixed for now, can re-enable later
-    const [selectedObject, setSelectedObject] = useState<{ id: string; name: string } | null>(null);
+    const [selectedObject, setSelectedObject] = useState<{ id: string; name: string; isOwn: boolean } | null>(null);
+
+    // ピン配置ダイアログ
+    const [showPinDialog, setShowPinDialog] = useState(false);
+    const [pendingPinPosition, setPendingPinPosition] = useState<GeoPosition | null>(null);
+    const [pinName, setPinName] = useState('');
+    const [pinColor, setPinColor] = useState('#ff4444');
+
+    const PIN_COLORS = ['#ff4444', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de', '#ff2d55', '#ffffff'];
 
     // 飛行オブジェクトの現在位置（リアルタイム更新）
     const [flyingPositions, setFlyingPositions] = useState<Map<string, GeoPosition>>(new Map());
 
-    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, userId } = useObjectStore();
+    const { objects: userObjects, publicObjects, addObject, addFlyingObject, addUGCObject, removeObject, userId } = useObjectStore();
     const { onlineUsers, otherFootprints, initializeSocial, broadcastPresence, recordFootprint } = useSocialStore();
 
     // ソーシャル機能初期化 & 定期ブロードキャスト
@@ -285,8 +293,12 @@ export function Map3DView() {
         };
 
         if (placeMode === 'static') {
-            addObject(positionWithAltitude, `📍 ${userObjects.length + 1}`, '#ff4444');
-            setStatusMessage(`ピン配置完了！（地面+${placeAltitude}m / 海抜${positionWithAltitude.altitude?.toFixed(0)}m）`);
+            // ダイアログを表示して名前・色を入力させる
+            setPendingPinPosition(positionWithAltitude);
+            setPinName(`ピン ${userObjects.length + 1}`);
+            setPinColor('#ff4444');
+            setShowPinDialog(true);
+            return;
         } else if (placeMode === 'ugc') {
             setShowUGCPanel(true);
             // UGCパネルが開くのでここではセットしない
@@ -304,7 +316,7 @@ export function Map3DView() {
 
     const cameraDestination = useMemo(() => {
         if (!currentPosition) return undefined;
-        return Cartesian3.fromDegrees(currentPosition.longitude, currentPosition.latitude, 150);
+        return Cartesian3.fromDegrees(currentPosition.longitude, currentPosition.latitude, 500);
     }, [currentPosition]);
 
     const getPlaceModeLabel = () => {
@@ -369,7 +381,7 @@ export function Map3DView() {
             destination: Cartesian3.fromDegrees(
                 currentPosition.longitude,
                 currentPosition.latitude,
-                200 // Altitude
+                500
             ),
             orientation: {
                 heading: 0,
@@ -538,7 +550,7 @@ export function Map3DView() {
                                             scale: obj.ugcData.scale || 1.0,
                                         }}
                                         onClick={() => {
-                                            setSelectedObject({ id: obj.id, name: obj.ugcData?.text || 'Text' });
+                                            setSelectedObject({ id: obj.id, name: obj.ugcData?.text || 'Text', isOwn });
                                         }}
                                     />
                                 );
@@ -569,7 +581,7 @@ export function Map3DView() {
                                             verticalOrigin: VerticalOrigin.TOP,
                                             distanceDisplayCondition: { near: 0, far: 1000 } as any,
                                         }}
-                                        onClick={() => setSelectedObject({ id: obj.id, name: '📷 Photo' })}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '📷 Photo', isOwn })}
                                     />
                                 );
                             }
@@ -595,7 +607,7 @@ export function Map3DView() {
                                             pixelOffset: new Cartesian2(0, -50),
                                             distanceDisplayCondition: { near: 0, far: 1000 } as any,
                                         }}
-                                        onClick={() => setSelectedObject({ id: obj.id, name: '📦 Model' })}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '📦 Model', isOwn })}
                                     />
                                 );
                             }
@@ -625,7 +637,7 @@ export function Map3DView() {
                                             style: 2,
                                             pixelOffset: new Cartesian2(0, -20),
                                         }}
-                                        onClick={() => setSelectedObject({ id: obj.id, name: '🔊 Audio Spot' })}
+                                        onClick={() => setSelectedObject({ id: obj.id, name: '🔊 Audio Spot', isOwn })}
                                     />
                                 );
                             }
@@ -658,7 +670,7 @@ export function Map3DView() {
                                         distanceDisplayCondition: { near: 0, far: 20000 } as any,
                                     }}
                                     onClick={() => {
-                                        setSelectedObject({ id: obj.id, name: obj.name });
+                                        setSelectedObject({ id: obj.id, name: obj.name, isOwn });
                                     }}
                                 />
                             );
@@ -694,12 +706,29 @@ export function Map3DView() {
                                         style: 2,
                                     }}
                                     onClick={() => {
-                                        setSelectedObject({ id: obj.id, name: obj.name });
+                                        setSelectedObject({ id: obj.id, name: obj.name, isOwn });
                                     }}
                                 />
                             );
                         })}
 
+                        {/* 現在地マーカー */}
+                        {currentPosition && (
+                            <Entity
+                                position={Cartesian3.fromDegrees(
+                                    currentPosition.longitude,
+                                    currentPosition.latitude,
+                                    (currentPosition.altitude || 0) + 2
+                                )}
+                                point={{
+                                    pixelSize: 18,
+                                    color: Color.fromCssColorString('#007aff'),
+                                    outlineColor: Color.WHITE,
+                                    outlineWidth: 3,
+                                    distanceDisplayCondition: { near: 0, far: 100000 } as any,
+                                }}
+                            />
+                        )}
 
                         {/* ソーシャル: 他のユーザー（オーブ） */}
                         {Array.from(onlineUsers.values()).map((user) => (
@@ -753,13 +782,77 @@ export function Map3DView() {
 
 
 
-            {/* ソーシャルスレッド */}
+            {/* オブジェクト詳細パネル */}
             {selectedObject && (
-                <SocialThread
-                    objectId={selectedObject.id}
-                    objectName={selectedObject.name}
-                    onClose={() => setSelectedObject(null)}
-                />
+                <div className="object-detail-panel">
+                    <div className="object-detail-header">
+                        <span className="object-detail-name">{selectedObject.name}</span>
+                        <div className="object-detail-actions">
+                            {selectedObject.isOwn && (
+                                <button
+                                    className="object-detail-delete-btn"
+                                    onClick={() => {
+                                        removeObject(selectedObject.id);
+                                        setSelectedObject(null);
+                                    }}
+                                >
+                                    🗑️ 削除
+                                </button>
+                            )}
+                            <button className="object-detail-close-btn" onClick={() => setSelectedObject(null)}>✕</button>
+                        </div>
+                    </div>
+                    <SocialThread
+                        objectId={selectedObject.id}
+                        objectName={selectedObject.name}
+                        onClose={() => setSelectedObject(null)}
+                    />
+                </div>
+            )}
+
+            {/* ピン配置ダイアログ */}
+            {showPinDialog && (
+                <div className="pin-dialog-overlay" onClick={() => setShowPinDialog(false)}>
+                    <div className="pin-dialog" onClick={e => e.stopPropagation()}>
+                        <h3 className="pin-dialog-title">📍 ピンを配置</h3>
+                        <input
+                            className="pin-dialog-input"
+                            type="text"
+                            placeholder="ピンの名前"
+                            value={pinName}
+                            onChange={e => setPinName(e.target.value)}
+                            maxLength={30}
+                            autoFocus
+                        />
+                        <div className="pin-color-picker">
+                            {PIN_COLORS.map(color => (
+                                <button
+                                    key={color}
+                                    className={`pin-color-btn ${pinColor === color ? 'active' : ''}`}
+                                    style={{ background: color }}
+                                    onClick={() => setPinColor(color)}
+                                />
+                            ))}
+                        </div>
+                        <div className="pin-dialog-footer">
+                            <button className="pin-dialog-cancel" onClick={() => setShowPinDialog(false)}>キャンセル</button>
+                            <button
+                                className="pin-dialog-confirm"
+                                style={{ background: pinColor }}
+                                onClick={() => {
+                                    if (pendingPinPosition) {
+                                        addObject(pendingPinPosition, pinName || `ピン ${userObjects.length + 1}`, pinColor);
+                                        setStatusMessage('ピンを配置しました！');
+                                    }
+                                    setShowPinDialog(false);
+                                    setPendingPinPosition(null);
+                                }}
+                            >
+                                配置する
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* オブジェクト数表示（タップでリスト表示） */}

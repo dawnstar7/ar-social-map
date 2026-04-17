@@ -2607,3 +2607,156 @@ body {
 .profile-achievement-badge.unlocked .profile-achievement-name {
   color: var(--text-main);
 }
+
+/* ========== オブジェクト詳細パネル ========== */
+.object-detail-panel {
+  position: fixed;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  background: rgba(20, 20, 30, 0.97);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px 20px 0 0;
+  z-index: 1000;
+  max-height: 60vh;
+  overflow-y: auto;
+  backdrop-filter: blur(20px);
+}
+
+.object-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.object-detail-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  flex: 1;
+}
+
+.object-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.object-detail-delete-btn {
+  background: rgba(255, 59, 48, 0.18);
+  color: #ff3b30;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.object-detail-close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* ========== ピン配置ダイアログ ========== */
+.pin-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.pin-dialog {
+  background: rgba(25, 25, 35, 0.98);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px 40px;
+  width: 100%;
+  max-width: 480px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.pin-dialog-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.pin-dialog-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.pin-dialog-input:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.pin-color-picker {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.pin-color-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.pin-color-btn.active {
+  border-color: #fff;
+  transform: scale(1.2);
+}
+
+.pin-dialog-footer {
+  display: flex;
+  gap: 12px;
+}
+
+.pin-dialog-cancel {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pin-dialog-confirm {
+  flex: 2;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  filter: brightness(1.1);
+}
